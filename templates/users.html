@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Users & Roles{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>🔑 Users &amp; Roles</h1>
+  <a class="btn" href="{{ url_for('user_new') }}">+ Add Account</a>
+</div>
+<p class="muted">A user can hold several roles at once. Grant or revoke a captain/admin role via <strong>Edit</strong>. At least one admin is always kept.</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Username</th><th>Name</th><th>Roles</th><th>Team</th><th>Status</th><th>Actions</th></tr></thead>
+  <tbody>
+  {% for u in users %}
+    <tr>
+      <td><code>{{ u.username }}</code></td>
+      <td>{{ u.name }}</td>
+      <td>{% for r in u.roles %}<span class="role-chip role-{{ r }}">{{ r }}</span> {% endfor %}</td>
+      <td>{{ team_name(u.team) if u.team else '—' }}</td>
+      <td>{{ 'Disabled' if u.disabled else 'Active' }}</td>
+      <td class="actions">
+        <a class="btn-sm btn-ghost" href="{{ url_for('user_edit', uid=u.id) }}">Edit</a>
+        <form method="post" action="{{ url_for('user_toggle', uid=u.id) }}"><button class="btn-sm btn-ghost">{{ 'Enable' if u.disabled else 'Disable' }}</button></form>
+        <form method="post" action="{{ url_for('user_reset_default', uid=u.id) }}" onsubmit="return confirm('Reset {{ u.username }} to default password?')"><button class="btn-sm btn-ghost" style="color:var(--danger)">Reset PW</button></form>
+        <button class="btn-sm btn-ghost" onclick="document.getElementById('reset-{{ u.id }}').style.display='flex'">Set PW</button>
+      </td>
+    </tr>
+    <tr id="reset-{{ u.id }}" style="display:none">
+      <td colspan="6">
+        <form method="post" action="{{ url_for('user_reset', uid=u.id) }}" class="actions">
+          <input type="password" name="password" placeholder="New strong password" required style="max-width:260px">
+          <button class="btn-sm btn-ok">Set password</button>
+          <span class="help">At least 6 characters.</span>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

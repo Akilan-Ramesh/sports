@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Reset / Sample data{% endblock %}
+{% block content %}
+<h1>♻️ Reset / Sample data</h1>
+<p class="muted">Everything seeded as a demo is tagged "sample". When your real data is in, remove just the sample — your own entries stay. You can also do this at the very beginning to start from a clean slate.</p>
+
+<div class="card">
+  <h2>Delete sample data</h2>
+  <p>Removes the demo content only:
+    <strong>{{ counts.sample_participants }}</strong> participants,
+    <strong>{{ counts.sample_events }}</strong> sports,
+    <strong>{{ counts.sample_users }}</strong> non-admin logins,
+    <strong>{{ counts.sample_announcements }}</strong> announcements, plus their sign-ups/results.
+    Teams, categories, settings and your admin login are <strong>kept</strong>.</p>
+  <form method="post" onsubmit="return confirm('Delete all sample data? Your own data is kept.')">
+    <input type="hidden" name="action" value="sample">
+    <button class="btn btn-danger">Delete sample data</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Restore sample data</h2>
+  <p class="muted">Re-creates the sample set for any table that is currently empty (handy to demo again).</p>
+  <form method="post">
+    <input type="hidden" name="action" value="reseed">
+    <button class="btn btn-ghost">Restore sample data</button>
+  </form>
+</div>
+
+<div class="card" style="border-color:#fecaca">
+  <h2 style="color:var(--danger)">Wipe everything</h2>
+  <p>Deletes <strong>everything</strong> — all participants, teams, sports, sport categories,
+    sign-ups, results, announcements, notifications, and the age categories (reset to defaults).
+    Every player &amp; captain login is removed too (currently {{ counts.total_participants }}
+    participants, {{ counts.total_events }} sports). <strong>Only admin logins are kept.</strong></p>
+  <form method="post" onsubmit="return confirm('WIPE ALL DATA (including age categories)? Only admin logins are kept. This cannot be undone.')">
+    <input type="hidden" name="action" value="wipe">
+    <div><button class="btn btn-danger" style="margin-top:.6rem">Wipe everything</button></div>
+  </form>
+</div>
+{% endblock %}

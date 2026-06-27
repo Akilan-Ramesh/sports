@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Programs{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>📋 Programs</h1>
+  <a href="{{ url_for('admin_program_new') }}" class="btn">+ New program</a>
+</div>
+<p class="muted">Top-level programs (Sports Meet, Bicycle Competition, etc.). All setup, teams, and sports are scoped per program.</p>
+
+<div class="card">
+  <div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Dates</th>
+        <th>Teams</th>
+        <th>Sports</th>
+        <th class="right">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in programs %}
+      {% set sbadge = status_badge.get(p.status, 'pill-draft') %}
+      {% set sidx = status_order.index(p.status) if p.status in status_order else -1 %}
+      {% set prev_status = status_order[sidx - 1] if sidx > 0 else None %}
+      {% set next_status = status_order[sidx + 1] if sidx >= 0 and sidx < status_order|length - 1 else None %}
+      <tr>
+        <td data-label="Name">
+          <strong>{{ p.name }}</strong>
+          {% if p.description %}<br><span class="muted" style="font-size:.85em">{{ p.description }}</span>{% endif %}
+          {% if p.id == current_pid %}<span class="badge pill-approved" style="margin-left:.5rem;font-size:.7rem">Active session</span>{% endif %}
+        </td>
+        <td data-label="Status">
+          <span class="badge {{ sbadge }}">{{ p.status|title }}</span>
+        </td>
+        <td data-label="Dates" class="muted">{{ p.start_date or '—' }} → {{ p.end_date or 'ongoing' }}</td>
+        <td data-label="Teams"><span class="badge">{{ p.n_teams }}</span></td>
+        <td data-label="Sports"><span class="badge">{{ p.n_sports }}</span></td>
+        <td data-label="" class="right actions" style="justify-content:flex-end;flex-wrap:wrap;gap:.3rem">
+          <a href="{{ url_for('admin_program_edit', pid=p.id) }}" class="btn-sm">Edit</a>
+          {% if p.in_use %}
+          <details class="usage">
+            <summary class="badge pill-pending" style="cursor:pointer;list-style:none">In use ▾</summary>
+            <div class="usage-pop">
+              <strong>Used in</strong>
+              <ul>{% for lbl, n in p.usage.items() %}<li><span>{{ lbl }}</span><strong>{{ n }}</strong></li>{% endfor %}</ul>
+            </div>
+          </details>
+          {% endif %}
+          <form method="post" action="{{ url_for('admin_program_switch', pid=p.id) }}" style="display:inline">
+            <button class="btn-sm">Switch to</button>
+          </form>
+          {% if prev_status %}
+          <form method="post" action="{{ url_for('admin_program_set_status', pid=p.id) }}" style="display:inline"
+                onsubmit="return confirm('Move {{ p.name }} back to {{ prev_status }}?')">
+            <input type="hidden" name="status" value="{{ prev_status }}">
+            <button class="btn-sm btn-ghost">← {{ prev_status|title }}</button>
+          </form>
+          {% endif %}
+          {% if next_status %}
+          <form method="post" action="{{ url_for('admin_program_set_status', pid=p.id) }}" style="display:inline"
+                onsubmit="return confirm('Advance {{ p.name }} to {{ next_status }}?')">
+            <input type="hidden" name="status" value="{{ next_status }}">
+            <button class="btn-sm btn-ok">{{ next_status|title }} →</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">No programs yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<div class="card" style="margin-top:1rem;padding:.75rem 1rem">
+  <strong style="font-size:.85rem">Lifecycle:</strong>
+  <span class="muted" style="font-size:.82rem">
+    {% for s in status_order %}
+    <span class="badge {{ status_badge[s] }}">{{ s|title }}</span>{% if not loop.last %} →{% endif %}
+    {% endfor %}
+  </span>
+  <p class="muted" style="margin:.4rem 0 0;font-size:.8rem">
+    Planned/New/WIP/Draft — admin only · Active — open to all players · Completed — read-only for non-admins
+  </p>
+</div>
+
+<script>
+document.querySelectorAll('details.usage').forEach(function(d) {
+  d.addEventListener('toggle', function() {
+    var pop = d.querySelector('.usage-pop');
+    if (!pop) return;
+    if (d.open) {
+      var rect = d.getBoundingClientRect();
+      pop.style.position = 'fixed';
+      pop.style.top = (rect.bottom + 4) + 'px';
+      pop.style.right = (window.innerWidth - rect.right) + 'px';
+      pop.style.left = 'auto';
+    } else {
+      pop.style.position = '';
+      pop.style.top = '';
+      pop.style.right = '';
+    }
+  });
+});
+document.addEventListener('click', function(e) {
+  document.querySelectorAll('details.usage[open]').forEach(function(d) {
+    if (!d.contains(e.target)) d.removeAttribute('open');
+  });
+});
+</script>
+{% endblock %}

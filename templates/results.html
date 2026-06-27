@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}Results{% endblock %}
+{% block content %}
+<h1>📊 Results</h1>
+
+{% macro standings_card() %}
+<div class="card">
+  <h2>🏆 Team standings</h2>
+  {% if standings %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>#</th><th>Team</th><th>Points</th></tr></thead>
+    <tbody>
+      {% for t in standings %}
+      <tr class="{{ 'my-team-row' if team_results and t.id == team_results.team_id }}">
+        <td data-label="#">{{ t.rank }}</td>
+        <td data-label="Team"><span class="team-dot" style="background:{{ t.colour or '#888' }}"></span>{{ t.name }}{% if team_results and t.id == team_results.team_id %} <span class="muted">(your team)</span>{% endif %}</td>
+        <td data-label="Points"><strong>{{ t.points }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">No teams yet.</p>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro overall_filter(show_view_hidden) %}
+<form class="card toolbar" method="get" id="resFilter">
+  {% if show_view_hidden %}<input type="hidden" name="view" value="overall">{% endif %}
+  <div><label>Gender</label><select name="gender" id="fGender" onchange="this.form.submit()">
+    <option value="">All</option>
+    {% for d in divisions %}<option value="{{ d }}" {{ 'selected' if filters.gender==d }}>{{ d }}</option>{% endfor %}
+  </select></div>
+  <div><label>Age Category</label><select name="age" id="fAge" onchange="this.form.submit()">
+    <option value="">All ages</option>
+    {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if filters.age==c.id }}>{{ c.name }}</option>{% endfor %}
+  </select></div>
+  <div><label>Sport Category</label><select name="category" id="fCat" onchange="this.form.submit()">
+    <option value="">All categories</option>
+    {% for c in sport_categories %}<option value="{{ c.id }}" {{ 'selected' if filters.category==c.id }}>{{ c.name }}</option>{% endfor %}
+  </select></div>
+  <div><label>Sport</label><select name="sport" id="fSport" onchange="this.form.submit()">
+    <option value="">All sports</option>
+    {% for s in sports %}<option value="{{ s.id }}" data-cat="{{ s.category_id or '' }}" {{ 'selected' if filters.sport==s.id }}>{{ s.name }}</option>{% endfor %}
+  </select></div>
+  <div><label>Team</label><select name="team" id="fTeam" onchange="this.form.submit()">
+    <option value="">All teams</option>
+    {% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if filters.team==t.id }}>{{ t.name }}</option>{% endfor %}
+  </select></div>
+  <div style="flex:1.4"><label>Name</label><select name="name" id="fName" onchange="this.form.submit()">
+    <option value="">— pick a player —</option>
+    {% for p in named %}
+    <option value="{{ p.id }}" data-gender="{{ p.division }}" data-age="{{ p.category or '' }}" {{ 'selected' if filters.name==p.id }}>{{ p.name }}</option>
+    {% endfor %}
+  </select></div>
+  <div><label>&nbsp;</label><a class="btn btn-ghost" href="{{ url_for('results_list') if captain_view else url_for('results_list', view='overall') }}">Clear</a></div>
+</form>
+{% endmacro %}
+
+{% macro results_table(pr) %}
+  <div class="card">
+    <div class="page-head">
+      <h2 style="margin:0">{{ pr.p.name }}</h2>
+      <span class="score-big" style="font-size:1.6rem">{{ pr.score }} pts</span>
+    </div>
+    <p class="muted">{{ pr.team_name }} · {{ pr.p.division }} · {{ pr.p.category or '—' }}</p>
+    {% if pr.rows %}
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Sport</th><th>Age · Gender</th><th>Place</th><th>Points</th><th></th></tr></thead>
+      <tbody>
+        {% for r in pr.rows %}
+        <tr class="{{ 'place-' ~ r.place if r.place and r.place<=3 }}">
+          <td data-label="Sport">{{ r.sport_name }}</td>
+          <td data-label="Age · Gender">{{ r.age_category or 'All' }} · {{ r.gender or 'Mixed' }}</td>
+          <td data-label="Place">{% if r.place %}<span class="medal-{{ r.place if r.place<=3 else '' }}">{{ r.place }}</span>{% else %}—{% endif %}</td>
+          <td data-label="Points"><strong>{{ r.points or 0 }}</strong></td>
+          <td data-label="" class="right"><a class="btn-sm btn-ghost" href="{{ url_for('result_detail', sid=r.sac_id) }}">Full result</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}<p class="muted">No results yet.</p>{% endif %}
+  </div>
+{% endmacro %}
+
+{% if captain_view %}
+{# ===================== Captain view: Standings on top, Overall below ===================== #}
+{{ standings_card() }}
+<h2 style="margin:1.2rem 0 .5rem">📋 Overall results</h2>
+{{ overall_filter(false) }}
+{% if player_results %}
+  {{ results_table(player_results) }}
+{% elif events %}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Sport · Age · Gender</th><th>Entries</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for e in events %}
+    <tr>
+      <td data-label="Sport · Age · Gender">{{ sac_label(e) }}</td>
+      <td data-label="Entries">{{ counts.get(e.id, 0) }}</td>
+      <td data-label="Status"><span class="badge pill-approved">🏁 Completed</span></td>
+      <td data-label="" class="right"><a class="btn-sm" href="{{ url_for('result_detail', sid=e.id) }}">View results →</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="card muted">No finished events match. Results appear here once an event is completed.</div>
+{% endif %}
+
+{% else %}
+{# ===================== Standard tabbed view ===================== #}
+{# ---- Tabs ---- #}
+<div class="tabs">
+  {% if has_mine %}<a class="tab {{ 'active' if view == 'mine' }}" href="{{ url_for('results_list', view='mine') }}">My results</a>{% endif %}
+  {% if has_team %}<a class="tab {{ 'active' if view == 'team' }}" href="{{ url_for('results_list', view='team') }}">Team results</a>{% endif %}
+  <a class="tab {{ 'active' if view == 'standings' }}" href="{{ url_for('results_list', view='standings') }}">🏆 Standings</a>
+  {% if acting != 'player' %}<a class="tab {{ 'active' if view == 'overall' }}" href="{{ url_for('results_list', view='overall') }}">Overall results</a>{% endif %}
+</div>
+
+{% if view == 'mine' %}
+  {% if player_results %}{{ results_table(player_results) }}
+  {% else %}<div class="card muted">You don't have any results yet, or your account isn't linked to a roster entry.</div>{% endif %}
+
+{% elif view == 'team' %}
+  {# ---- Team results: this team's published results + total ---- #}
+  {% if team_results %}
+  <div class="card">
+    <div class="page-head">
+      <h2 style="margin:0">{{ team_results.team_name }} <span class="muted" style="font-size:1rem">— team results</span></h2>
+      <span class="score-big" style="font-size:1.6rem">{{ team_results.score }} pts</span>
+    </div>
+    {% if team_results.rows %}
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Sport</th><th>Age · Gender</th><th>Who</th><th>Place</th><th>Points</th><th></th></tr></thead>
+      <tbody>
+        {% for r in team_results.rows %}
+        <tr class="{{ 'place-' ~ r.place if r.place and r.place<=3 }}">
+          <td data-label="Sport">{{ r.sport_name }}</td>
+          <td data-label="Age · Gender">{{ r.age_category or 'All' }} · {{ r.gender or 'Mixed' }}</td>
+          <td data-label="Who">{{ r.pname or (team_results.team_name ~ ' (team)') }}</td>
+          <td data-label="Place">{% if r.place %}<span class="medal-{{ r.place if r.place<=3 else '' }}">{{ r.place }}</span>{% else %}—{% endif %}</td>
+          <td data-label="Points"><strong>{{ r.points or 0 }}</strong></td>
+          <td data-label="" class="right"><a class="btn-sm btn-ghost" href="{{ url_for('result_detail', sid=r.sac_id) }}">Full result</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}<p class="muted">No published results for your team yet.</p>{% endif %}
+  </div>
+  {% else %}<div class="card muted">You're not linked to a team yet.</div>{% endif %}
+
+{% elif view == 'standings' %}
+  {{ standings_card() }}
+
+{% else %}
+  {# ---- Overall: cascade Gender -> Age -> Sport Category -> Sport -> Name ---- #}
+  {{ overall_filter(true) }}
+  {% if player_results %}
+    {{ results_table(player_results) }}
+  {% elif events %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Sport · Age · Gender</th><th>Entries</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for e in events %}
+      <tr>
+        <td data-label="Sport · Age · Gender">{{ sac_label(e) }}</td>
+        <td data-label="Entries">{{ counts.get(e.id, 0) }}</td>
+        <td data-label="Status"><span class="badge pill-approved">🏁 Completed</span></td>
+        <td data-label="" class="right"><a class="btn-sm" href="{{ url_for('result_detail', sid=e.id) }}">View results →</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <div class="card muted">No finished events match. Results appear here once an event is completed.</div>
+  {% endif %}
+{% endif %}
+{% endif %}{# /captain_view #}
+
+<script>
+// Cascade Gender -> Age -> Sport Category -> Sport -> Name using the completed-event combos.
+(function(){
+  var COMBOS = {{ combos|tojson }};
+  var g=document.getElementById('fGender'), a=document.getElementById('fAge'),
+      c=document.getElementById('fCat'), s=document.getElementById('fSport'), n=document.getElementById('fName');
+  if(!g) return;
+  function avail(filter){
+    return COMBOS.filter(function(x){
+      return (!filter.gender || x.gender===filter.gender)
+          && (!filter.age || x.age===filter.age)
+          && (!filter.cat || x.cat===filter.cat)
+          && (!filter.sport || x.sport===filter.sport);
+    });
+  }
+  function applyOptions(sel, key, valid){
+    if(!sel) return;
+    Array.prototype.forEach.call(sel.options, function(o){
+      if(!o.value) return;
+      o.hidden = !valid.has(o.value);
+    });
+    if(sel.selectedOptions.length && sel.selectedOptions[0].hidden){ sel.value=''; }
+  }
+  function setOf(rows, key){ var z=new Set(); rows.forEach(function(r){ if(r[key]) z.add(r[key]); }); return z; }
+  function cascade(){
+    var gv=g.value, av=a.value, cv=c?c.value:'', sv=s?s.value:'';
+    applyOptions(c, 'cat', setOf(avail({gender:gv, age:av}), 'cat'));
+    cv = (c && c.value) || '';
+    applyOptions(s, 'sport', setOf(avail({gender:gv, age:av, cat:cv}), 'sport'));
+    sv = (s && s.value) || '';
+    if(n){
+      Array.prototype.forEach.call(n.options, function(o){
+        if(!o.value) return;
+        o.hidden = (gv && o.dataset.gender!==gv) || (av && o.dataset.age!==av);
+      });
+      if(n.selectedOptions.length && n.selectedOptions[0].hidden){ n.value=''; }
+    }
+  }
+  [g,a,c,s].forEach(function(el){ if(el) el.addEventListener('change',cascade); });
+  cascade();
+})();
+</script>
+{% endblock %}

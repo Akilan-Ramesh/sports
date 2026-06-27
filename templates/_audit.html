@@ -1,0 +1,10 @@
+{# Small "created by / last edited by" line for admin-managed records.
+   Relies on the global user_name() and the ts_dmy filter. #}
+{% macro audit_note(row) %}
+{%- if row %}
+<p class="audit-note muted">
+  Created by {{ user_name(row.created_by) }}{% if row.created_at %} · {{ row.created_at|ts_dmy }}{% endif %}
+  {%- if row.modified_at %}<br>Last edited by {{ user_name(row.modified_by) }} · {{ row.modified_at|ts_dmy }}{% endif %}
+</p>
+{%- endif %}
+{% endmacro %}

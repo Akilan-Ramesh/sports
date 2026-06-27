@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Participants{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>👥 Participants <span class="muted">({{ participants|length }})</span></h1>
+  {% if user.is_admin or user.is_captain %}
+  <a class="btn" href="{{ url_for('participant_new') }}">+ Add Participant</a>
+  {% endif %}
+</div>
+
+{% if user.is_admin and pending_approvals %}
+<div class="flash flash-info">There {{ 'is' if pending_approvals|length==1 else 'are' }}
+  {{ pending_approvals|length }} roster request(s) awaiting you on the
+  <a href="{{ url_for('approvals') }}">Approvals</a> page.</div>
+{% endif %}
+
+{# ---- Unassigned players a captain can claim (or admin can place) ---- #}
+{% if unassigned %}
+<div class="card">
+  <h2>🆕 Unassigned players <span class="muted">({{ unassigned|length }})</span></h2>
+  <p class="muted">Players who registered but aren't on a team yet. Filter by age &amp; gender to find a player.</p>
+  <div class="toolbar" style="margin-bottom:.6rem">
+    <div><label>Age Category</label><select id="uAge" onchange="filterUnassigned()"><option value="">All ages</option>
+      {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
+    <div><label>Gender</label><select id="uGender" onchange="filterUnassigned()"><option value="">All</option>
+      {% for d in divisions %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
+    <div style="flex:1.4"><label>Player name</label><input type="text" id="uName" placeholder="🔍 Filter by name…" onkeyup="filterUnassigned()"></div>
+  </div>
+  <div class="table-wrap">
+  <table id="unassignedTbl">
+    <thead><tr><th>Name</th><th>Gender</th><th>Age</th><th>Category</th><th></th></tr></thead>
+    <tbody>
+      {% for p in unassigned %}
+      <tr data-name="{{ p.name|lower }}" data-gender="{{ p.division or '' }}" data-cat="{{ p.category or '' }}">
+        <td data-label="Name">{{ p.name }}</td><td data-label="Gender">{{ p.division }}</td>
+        <td data-label="Age">{{ p.age if p.age is not none else '—' }}</td><td data-label="Category">{{ p.category or '—' }}</td>
+        <td data-label="" class="right actions">
+          {% if my_team %}
+          <form method="post" action="{{ url_for('participant_assign', pid=p.id) }}">
+            <input type="hidden" name="team" value="{{ my_team }}">
+            <button class="btn-sm btn-ok">Add to my team</button>
+          </form>
+          {% elif user.is_admin %}
+          <form method="post" action="{{ url_for('participant_assign', pid=p.id) }}" class="actions">
+            <select name="team">{% for t in teams %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select>
+            <button class="btn-sm">Assign</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+<form class="card toolbar" method="get">
+  <div style="flex:2"><label>Search</label><input type="text" name="q" value="{{ filters.q }}" placeholder="Name or Reg No."></div>
+  {% if user.is_admin or user.is_captain %}
+  <div><label>Team</label><select name="team"><option value="">All</option>
+    {% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if filters.team==t.id }}>{{ t.name }}</option>{% endfor %}</select></div>
+  {% endif %}
+  <div><label>Category</label><select name="category"><option value="">All</option>
+    {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if filters.category==c.id }}>{{ c.name }}</option>{% endfor %}</select></div>
+  <div><label>Gender</label><select name="division"><option value="">All</option>
+    {% for d in divisions %}<option value="{{ d }}" {{ 'selected' if filters.division==d }}>{{ d }}</option>{% endfor %}</select></div>
+  <div><label>Sport</label><select name="event"><option value="">All</option>
+    {% for e in events %}<option value="{{ e.id }}" {{ 'selected' if filters.event==e.id }}>{{ e.name }}</option>{% endfor %}</select></div>
+  <div><label>&nbsp;</label><button class="btn">Filter</button></div>
+</form>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Name</th><th>Team</th><th>Gender</th><th>Age</th><th>Category</th><th>Sports</th>{% if user.is_admin or user.is_captain %}<th class="right">Actions</th>{% endif %}</tr></thead>
+  <tbody>
+    {% for p in participants %}
+    {% set tm = teams|selectattr('id','equalto',p.team)|first %}
+    <tr {{ 'style=opacity:.55' if p.archived }}>
+      <td data-label="Name">{{ p.name }}{% if p.volunteer %} <span class="badge">volunteer</span>{% endif %}{% if p.user %} <span class="badge">login</span>{% endif %}{% if p.awaiting %} <span class="badge pill-pending">awaiting approval</span>{% endif %}{% if p.archived %} <span class="badge pill-disputed">archived</span>{% endif %}</td>
+      <td data-label="Team"><span class="team-dot" style="background:{{ tm.colour if tm else '#888' }}"></span>{{ tm.name if tm else 'Unassigned' }}</td>
+      <td data-label="Gender">{{ p.division }}</td>
+      <td data-label="Age">{{ p.age if p.age is not none else '—' }}</td>
+      {% set _cat = (categories|selectattr('id','equalto',p.category)|first) if p.category else none %}
+      <td data-label="Category">{{ _cat.name if _cat else '—' }}</td>
+      <td data-label="Sports">{{ (p.events or [])|length }}</td>
+      {% if user.is_admin or user.is_captain %}
+      <td data-label="" class="right actions" style="justify-content:flex-end">
+        {% if user.is_admin or p.team==user.team %}
+        {% if p.archived %}
+        <form method="post" action="{{ url_for('participant_archive', pid=p.id) }}">
+          <button class="btn-sm btn-ghost">Unarchive</button></form>
+        {% else %}
+        <a class="btn-sm btn-ghost" href="{{ url_for('signup', pid=p.id) }}">Sign-up</a>
+        <a class="btn-sm btn-ghost" href="{{ url_for('participant_edit', pid=p.id) }}">Edit</a>
+        {% if my_team and not p.awaiting %}
+        <form method="post" action="{{ url_for('participant_assign', pid=p.id) }}" style="display:inline">
+          <input type="hidden" name="team" value="">
+          <button class="btn-sm btn-ghost" title="Remove from team">Release</button>
+        </form>
+        {% endif %}
+        {% if p.n_results %}
+        <span class="badge pill-pending" title="Has {{ p.n_results }} recorded result(s) — deleting will archive instead">In use</span>
+        {% endif %}
+        <form method="post" action="{{ url_for('participant_archive', pid=p.id) }}">
+          <button class="btn-sm btn-ghost">Archive</button></form>
+        <form method="post" action="{{ url_for('participant_delete', pid=p.id) }}" onsubmit="return confirm('Delete {{ p.name }}? If they have results they will be archived instead.')">
+          <button class="btn-sm btn-danger">Delete</button></form>
+        {% endif %}
+        {% endif %}
+      </td>
+      {% endif %}
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="muted">No participants match.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<script>
+// Client-side filter for the Unassigned players table: Age -> Gender -> Name.
+function filterUnassigned(){
+  var tbl=document.getElementById('unassignedTbl'); if(!tbl) return;
+  var age=(document.getElementById('uAge')||{}).value||'';
+  var gen=(document.getElementById('uGender')||{}).value||'';
+  var name=((document.getElementById('uName')||{}).value||'').toLowerCase();
+  tbl.querySelectorAll('tbody tr').forEach(function(tr){
+    var ok=(!age || tr.dataset.cat===age)
+         && (!gen || tr.dataset.gender===gen)
+         && (tr.dataset.name.indexOf(name)>-1);
+    tr.style.display = ok ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}

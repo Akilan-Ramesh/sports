@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if user.acting == 'player' %}Welcome, {{ user.name }}{% else %}Dashboard <span class="muted" style="font-size:.9rem">({{ user.acting }})</span>{% endif %}</h1>
+  {% if user.acting == 'admin' %}
+  <div class="actions">
+    <a class="btn-sm" href="{{ url_for('participant_new') }}">+ Participant</a>
+    <a class="btn-sm" href="{{ url_for('sport_new') }}">+ Sport</a>
+    <a class="btn-sm btn-ghost" href="{{ url_for('sac_list') }}">Sport Age Cats</a>
+    <a class="btn-sm btn-ghost" href="{{ url_for('admin_home') }}">Maintenance</a>
+    <a class="btn-sm btn-ghost" href="{{ url_for('admin_selftest') }}">🧪 Self-tests</a>
+  </div>
+  {% endif %}
+</div>
+
+{% if user.acting == 'admin' %}
+<div class="card">
+  <div class="page-head" style="margin:0">
+    <h2 style="margin:0">🧪 Self-tests</h2>
+    <form method="post" action="{{ url_for('admin_selftest') }}"><button class="btn-sm">Run tests now</button></form>
+  </div>
+  <p class="muted">One click runs the full end-to-end suite (including the result-entry
+  approval workflow and its failure cases) against a throwaway database — your data is untouched.</p>
+</div>
+{% endif %}
+
+{# ---- Announcements (everyone, admin-curated) ---- #}
+{% if announcements %}
+<div class="card">
+  <h2>📢 Announcements</h2>
+  {% for a in announcements %}
+  <div style="padding:.5rem 0;border-bottom:1px solid var(--line)">
+    <strong>{{ a.title }}</strong>
+    {% if a.body %}<div class="muted" style="font-size:.9rem">{{ a.body }}</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{# ---- Player participation panel ---- #}
+{% if player_data %}
+<div class="grid grid-2" style="align-items:start">
+  <div class="card">
+    <h2>🏅 Your score</h2>
+    <div class="score-pair">
+      <div><div class="score-big">{{ player_data.score }} pts</div><div class="muted">You</div></div>
+      <div><div class="score-big">{{ player_data.team_score }} pts</div><div class="muted">{{ player_data.team_name }}</div></div>
+    </div>
+    <p class="muted">{{ player_data.p.division }} · {{ player_data.p.category or '—' }}</p>
+    {% if player_data.standings %}
+    <h3 style="margin:.6rem 0 .3rem;font-size:1rem">🏆 Team standings</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Team</th><th>Points</th></tr></thead>
+      <tbody>
+      {% for t in player_data.standings %}
+        <tr class="{{ 'my-team-row' if t.id == player_data.team_id }}">
+          <td data-label="#">{{ t.rank }}</td>
+          <td data-label="Team"><span class="team-dot" style="background:{{ t.colour or '#888' }}"></span>{{ t.name }}{% if t.id == player_data.team_id %} <span class="muted">(your team)</span>{% endif %}</td>
+          <td data-label="Points"><strong>{{ t.points }}</strong></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% endif %}
+    {% if player_data.results %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Sport</th><th>Place</th><th>Points</th></tr></thead>
+      <tbody>
+      {% for r in player_data.results %}
+        <tr class="{{ 'place-' ~ r.place if r.place and r.place<=3 }}">
+          <td data-label="Sport">{{ r.event_name }}</td>
+          <td data-label="Place">{% if r.place %}<span class="medal-{{ r.place if r.place<=3 else '' }}">{{ r.place }}</span>{% else %}—{% endif %}</td>
+          <td data-label="Points"><strong>{{ r.points or 0 }}</strong></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="muted">No results yet.</p>{% endif %}
+  </div>
+  <div class="card">
+    <div class="page-head" style="margin:0 0 .6rem">
+      <h2 style="margin:0">📝 Your registered sports</h2>
+      <a class="btn-sm btn-ghost" href="{{ url_for('signup') }}">Manage sign-ups</a>
+    </div>
+    {% if player_data.regs %}
+    <ul style="list-style:none;padding:0;margin:0">
+      {% for e in player_data.regs %}
+      {% set sm = STATUS_META.get(e.status, ('New','pill-draft')) %}
+      {% set locked = e.sport_id in player_data.locked_ids %}
+      <li style="padding:.55rem 0;border-bottom:1px solid var(--line)">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">
+          <strong>{{ e.sport_name }}</strong>
+          <span class="badge {{ sm[1] }}">{{ sm[0] }}</span>
+        </div>
+        <div class="muted" style="font-size:.85rem">
+          {{ e.age_category or 'All' }} · {{ e.gender or 'Mixed' }}
+          {% if e.date %} · 📅 {{ e.date|dmy }}{% endif %}{% if e.slot %} · 🕘 {{ e.slot }}{% endif %}{% if e.location %} · 📍 {{ e.location }}{% endif %}
+        </div>
+        <div style="margin-top:.35rem;display:flex;gap:.4rem;flex-wrap:wrap">
+          {% if e.finalised %}<a class="btn-sm btn-ghost" href="{{ url_for('result_detail', sid=e.id) }}">View result</a>{% endif %}
+          {% if not locked %}
+          <form method="post" action="{{ url_for('profile_withdraw', sport_id=e.sport_id) }}" style="display:inline" onsubmit="return confirm('Withdraw from {{ e.sport_name }}?')">
+            <button class="btn-sm btn-ghost" style="color:var(--danger)">Withdraw</button>
+          </form>
+          {% else %}
+          <span class="muted" style="font-size:.78rem">Result recorded — cannot withdraw</span>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted">You haven't signed up for any sports yet. <a href="{{ url_for('signup') }}">Sign up now →</a></p>{% endif %}
+    <div style="margin-top:.75rem">
+      <a class="btn-sm" href="{{ url_for('profile_edit') }}">✏️ Edit my profile</a>
+    </div>
+  </div>
+</div>
+{% elif user.acting == 'player' %}
+<div class="card">
+  <p class="muted">Your account isn't linked to a roster entry yet. A captain will add you to a team shortly.</p>
+  <a class="btn" href="{{ url_for('signup') }}">Browse & sign up for sports</a>
+</div>
+{% endif %}
+
+{# ---- Staff dashboard ---- #}
+{% if staff %}
+<div class="grid grid-4">
+  <div class="stat"><div class="num">{{ staff.stats.sports_participants }}</div><div class="lbl">Participants</div></div>
+  <div class="stat"><div class="num">{{ staff.stats.sports_sports }}</div><div class="lbl">Sports</div></div>
+  <div class="stat"><div class="num">{{ staff.stats.volunteers }}</div><div class="lbl">Volunteers</div></div>
+  <div class="stat"><div class="num">{{ staff.stats.unassigned }}</div><div class="lbl">Unassigned</div></div>
+</div>
+
+{# Captain hub: team summary + standings #}
+{% if staff.captain_hub %}
+{% set hub = staff.captain_hub %}
+<div class="grid grid-2" style="align-items:start">
+  <div class="card">
+    <h2>🚩 {{ hub.team }} — Summary</h2>
+    <div class="score-pair">
+      <div><div class="score-big">{{ hub.points }}</div><div class="muted">Team points</div></div>
+      <div><div class="score-big">{% if hub.rank %}#{{ hub.rank }}{% else %}—{% endif %}</div><div class="muted">of {{ hub.total_teams }} teams</div></div>
+    </div>
+    {% if hub.standings %}
+    <h3 style="margin:.8rem 0 .3rem;font-size:.95rem">🏆 Standings</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Team</th><th>Pts</th></tr></thead>
+      <tbody>
+      {% for t in hub.standings %}
+      <tr class="{{ 'my-team-row' if t.id == hub.my_team }}">
+        <td data-label="#">{{ t.rank }}</td>
+        <td data-label="Team"><span class="team-dot" style="background:{{ t.colour or '#888' }}"></span>{{ t.name }}{% if t.id == hub.my_team %} <span class="muted">(your team)</span>{% endif %}</td>
+        <td data-label="Pts"><strong>{{ t.points }}</strong></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% endif %}
+  </div>
+  <div class="card">
+    <h2>📊 Recent Team Results</h2>
+    {% if hub.recent %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Sport</th><th>Place</th><th>Pts</th></tr></thead>
+      <tbody>
+      {% for r in hub.recent %}
+      <tr class="{{ 'place-' ~ r.place if r.place and r.place<=3 }}">
+        <td data-label="Sport">{{ r.sport_name }}<span class="muted" style="font-size:.8rem;display:block">{{ r.age_category or 'All' }} · {{ r.gender or 'Mixed' }}</span></td>
+        <td data-label="Place">{% if r.place %}<span class="medal-{{ r.place if r.place<=3 else '' }}">{{ r.place }}</span>{% else %}—{% endif %}</td>
+        <td data-label="Pts"><strong>{{ r.points or 0 }}</strong></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="muted">No results yet.</p>{% endif %}
+    <div style="margin-top:.75rem">
+      <a class="btn-sm btn-ghost" href="{{ url_for('results_list') }}">Full results →</a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="page-head" style="margin-bottom:.6rem">
+    <h2 style="margin:0">📅 {% if staff.captain_hub %}Team schedule — {% endif %}Week of {{ staff.start.strftime('%b %-d') }} – {{ staff.end.strftime('%b %-d') }}</h2>
+    <div class="actions">
+      <a class="btn-sm btn-ghost" href="{{ url_for('dashboard', week=staff.prev_week) }}">◀ Prev</a>
+      {% if not staff.is_current %}<a class="btn-sm btn-ghost" href="{{ url_for('dashboard') }}">This week</a>{% endif %}
+      <a class="btn-sm btn-ghost" href="{{ url_for('dashboard', week=staff.next_week) }}">Next ▶</a>
+    </div>
+  </div>
+  {% if staff.window %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Date</th><th>Time</th><th>Sport</th><th>Age · Gender</th><th>Category</th><th>Location</th></tr></thead>
+    <tbody>
+      {% for e in staff.window %}
+      <tr>
+        <td data-label="Date"><strong>{{ e.date|dmy }}</strong></td><td data-label="Time">{{ e.slot or '—' }}</td>
+        <td data-label="Sport"><a href="{{ url_for('callsheet', sid=e.id) }}">{{ e.sport_name }}</a></td>
+        <td data-label="Age · Gender">{{ e.age_category or 'All' }} · {{ e.gender or 'Mixed' }}</td>
+        <td data-label="Category"><span class="badge">{{ e.category_name }}</span></td>
+        <td data-label="Location">{{ e.location or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">Nothing scheduled for your team this week.</p>{% endif %}
+</div>
+
+{% if not staff.captain_hub %}
+<div class="card">
+  <h2>📋 Recent Activity <span class="muted" style="font-size:.8rem">(staff only)</span></h2>
+  {% if staff.activity %}
+  <ul style="list-style:none;padding:0;margin:0">
+    {% for a in staff.activity %}<li style="padding:.45rem 0;border-bottom:1px solid var(--line)">{{ a.message }}</li>{% endfor %}
+  </ul>
+  {% else %}<p class="muted">No activity yet.</p>{% endif %}
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

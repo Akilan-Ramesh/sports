@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Results — {{ e.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ e.sport_name }} <span class="badge">{{ e.category_name }}</span></h1>
+  <button class="btn btn-ghost no-print" onclick="window.print()">🖨 Print / PDF</button>
+</div>
+<p class="muted">
+  {{ e.age_category or 'All ages' }} · {{ e.gender or 'Mixed' }} ·
+  Format: {{ e.event_format|capitalize }} ·
+  Location: {{ e.location or '—' }} · Scoring: {{ e.scoring_mode }} ·
+  Status:
+  {% if is_staff %}<span class="badge pill-{{ e.approval_status }}">{{ 'Completed' if e.finalised else e.approval_status }}</span>
+  {% else %}<span class="badge {{ 'pill-approved' if e.finalised else 'pill-pending' }}">{{ 'Completed' if e.finalised else 'Not yet published' }}</span>{% endif %}
+</p>
+
+{% for key, rows in groups.items() %}
+<div class="card">
+  <h2>{{ cat_name(key[0]) }} — {{ key[1] }}</h2>
+  <div class="table-wrap">
+  {% if is_team %}
+  {# Team / doubles: one row per team. Doubles (<=2 players) shows names inline;
+     larger teams show the team name with a click-to-expand player list. #}
+  <table>
+    <thead><tr><th>Place</th><th>Team</th><th>Players</th><th>Points</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr class="{{ 'place-' ~ r.place if r.place and r.place<=3 }}">
+        <td>{% if r.place %}<span class="medal-{{ r.place if r.place<=3 else '' }}">{{ r.place }}</span>{% else %}—{% endif %}</td>
+        <td><span class="team-dot" style="background:{{ r.team_obj.colour if r.team_obj else '#888' }}"></span>{{ r.team_obj.name if r.team_obj else r.participant }}</td>
+        <td>
+          {% if r.players|length <= 2 %}
+            {% for pl in r.players %}{{ pl.name }}{{ ' &amp; ' | safe if not loop.last }}{% endfor %}{% if not r.players %}—{% endif %}
+          {% else %}
+            <details><summary style="cursor:pointer">{{ r.players|length }} players ▾</summary>
+              <div class="muted" style="margin-top:.3rem">{% for pl in r.players %}{{ pl.name }}{{ ', ' if not loop.last }}{% endfor %}</div>
+            </details>
+          {% endif %}
+        </td>
+        <td><strong>{{ r.points or 0 }}</strong></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <table>
+    <thead><tr><th>Place</th><th>Name</th><th>Team</th>
+      {% if e.scoring_mode=='measured' %}<th>Best</th>{% endif %}<th>Points</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      {% set p = parts.get(r.participant) %}
+      {% set tmatch = (teams|selectattr('id','equalto',p.team)|list) if p else [] %}
+      <tr class="{{ 'place-' ~ r.place if r.place and r.place<=3 }}">
+        <td>{% if r.place %}<span class="medal-{{ r.place if r.place<=3 else '' }}">{{ r.place }}</span>{% else %}—{% endif %}</td>
+        <td>{{ p.name if p else r.participant }}</td>
+        <td><span class="team-dot" style="background:{{ tmatch[0].colour if tmatch else '#888' }}"></span>{{ team_name(p.team) if p else '—' }}</td>
+        {% if e.scoring_mode=='measured' %}<td>{{ r.best if r.best is not none else '—' }}</td>{% endif %}
+        <td><strong>{{ r.points or 0 }}</strong></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="card muted">No results entered for this event yet.</div>
+{% endfor %}
+{% endblock %}

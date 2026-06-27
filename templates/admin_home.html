@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Maintenance{% endblock %}
+{% block content %}
+<h1>🛠 Maintenance</h1>
+<p class="muted">Everything is editable here. Each area has its own page (same order as the menu).</p>
+<div class="grid grid-3">
+  <a class="card" href="{{ url_for('admin_teams') }}"><h2>🚩 Teams</h2><p class="muted">{{ counts.teams }} teams · names &amp; colours.</p></a>
+  <a class="card" href="{{ url_for('admin_sport_categories') }}"><h2>🗂 Sport Categories</h2><p class="muted">{{ counts.sport_categories }} categories.</p></a>
+  <a class="card" href="{{ url_for('admin_age_categories') }}"><h2>🎂 Age Categories</h2><p class="muted">Age groups used to classify by birth year.</p></a>
+  <a class="card" href="{{ url_for('sports_master') }}"><h2>🏆 Sports</h2><p class="muted">{{ counts.sports }} sports · the catalogue you plan to organise.</p></a>
+  <a class="card" href="{{ url_for('sac_list') }}"><h2>🎯 Sports Event</h2><p class="muted">{{ counts.sac }} · scoring, schedule &amp; result entry.</p></a>
+  <a class="card" href="{{ url_for('participants_list') }}"><h2>👥 Participants</h2><p class="muted">{{ counts.participants }} people · rosters, sign-ups &amp; details.</p></a>
+  <a class="card" href="{{ url_for('team_selection') }}"><h2>🧮 Team Selection</h2><p class="muted">Draft players onto teams from your offline selections.</p></a>
+  <a class="card" href="{{ url_for('users_list') }}"><h2>🔑 Users &amp; Roles</h2><p class="muted">{{ counts.users }} users · who can be captain / admin.</p></a>
+  <a class="card" href="{{ url_for('admin_announcements') }}"><h2>📢 Announcements</h2><p class="muted">{{ counts.announcements }} · control what players see.</p></a>
+  <a class="card" href="{{ url_for('admin_settings') }}"><h2>⚙️ Settings</h2><p class="muted">Event name, role passwords, default points.</p></a>
+  <a class="card" href="{{ url_for('admin_data') }}"><h2>💾 Import / Backup</h2><p class="muted">CSV import · JSON export · DB backup.</p></a>
+  <a class="card" href="{{ url_for('admin_reset') }}"><h2>♻️ Reset / Sample data</h2><p class="muted">{{ counts.sample }} sample rows · remove sample or wipe.</p></a>
+</div>
+{% endblock %}

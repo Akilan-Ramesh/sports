@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Self-tests{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>🧪 Self-tests</h1>
+  <form method="post"><button class="btn">{{ 'Re-run tests' if ran else 'Run tests' }}</button></form>
+</div>
+<p class="muted">Runs the end-to-end suite (auth, permissions, the result-entry agreement
+workflow and its negative cases, roster approval, parent-child guards, CSRF, and more).
+It runs against a throwaway database, so it never affects your real data. Takes a few seconds.</p>
+
+{% if ran %}
+  {% if summary %}
+  <div class="flash {{ 'flash-success' if failed==0 else 'flash-danger' }}">
+    <strong>{{ summary }}</strong>
+  </div>
+  {% endif %}
+  {% if results %}
+  <div class="card">
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Result</th><th>Check</th></tr></thead>
+      <tbody>
+        {% for r in results %}
+        <tr>
+          <td>{% if r.ok %}<span class="badge pill-approved">PASS</span>{% else %}<span class="badge pill-disputed">FAIL</span>{% endif %}</td>
+          <td>{{ r.text }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="card">
+    <p class="muted">No PASS/FAIL lines were parsed. Raw output:</p>
+    <pre style="white-space:pre-wrap;font-size:.8rem">{{ raw }}</pre>
+  </div>
+  {% endif %}
+{% else %}
+<div class="card muted">Click <strong>Run tests</strong> to execute the suite now.</div>
+{% endif %}
+{% endblock %}

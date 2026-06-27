@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Team Selection{% endblock %}
+{% block content %}
+<h1>🧮 Team Selection</h1>
+<p class="muted">Enter the team selections decided offline. Set each player's team in the dropdown, then <strong>Save selections</strong>. Use the filters to work through the list a chunk at a time (e.g. all unassigned Male in U18).</p>
+
+<div class="grid grid-4">
+  {% for t in teams %}
+  <div class="stat"><div class="num">{{ counts[t.id] }}</div><div class="lbl">{{ t.name }}</div></div>
+  {% endfor %}
+  <div class="stat"><div class="num">{{ counts['__none__'] }}</div><div class="lbl">Unassigned</div></div>
+</div>
+
+<form class="card toolbar" method="get">
+  <div style="flex:2"><label>Search</label><input type="text" name="q" value="{{ filters.q }}" placeholder="Name or Reg No."></div>
+  <div><label>Team</label><select name="team"><option value="">All</option>
+    <option value="__none__" {{ 'selected' if filters.team=='__none__' }}>Unassigned only</option>
+    {% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if filters.team==t.id }}>{{ t.name }}</option>{% endfor %}</select></div>
+  <div><label>Gender</label><select name="division"><option value="">All</option>
+    {% for d in divisions %}<option value="{{ d }}" {{ 'selected' if filters.division==d }}>{{ d }}</option>{% endfor %}</select></div>
+  <div><label>Category</label><select name="category"><option value="">All</option>
+    {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if filters.category==c.id }}>{{ c.name }}</option>{% endfor %}</select></div>
+  <div><label>&nbsp;</label><button class="btn">Filter</button></div>
+</form>
+
+<form method="post">
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Reg</th><th>Name</th><th>Gender</th><th>Age</th><th>Category</th><th>Team</th></tr></thead>
+    <tbody>
+      {% for p in people %}
+      <tr>
+        <td><code>{{ p.id }}</code></td>
+        <td>{{ p.name }}{% if p.user_id %} <span class="badge">login</span>{% endif %}</td>
+        <td>{{ p.division }}</td>
+        <td>{{ p.age if p.age is not none else '—' }}</td>
+        <td>{{ p.category or '—' }}</td>
+        <td>
+          <select name="team_{{ p.id }}">
+            <option value="" {{ 'selected' if not p.team }}>— Unassigned —</option>
+            {% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if p.team==t.id }}>{{ t.name }}</option>{% endfor %}
+          </select>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">No players match the filter.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if people %}
+  <div class="actions" style="margin-top:1rem">
+    <button class="btn">Save selections</button>
+    <span class="help">Only changed rows are updated; linked players get a notification.</span>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

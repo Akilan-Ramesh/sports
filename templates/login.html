@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+{% block content_anon %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <h1>🏅 Sports Meet</h1>
+    <p class="auth-sub">{{ cfg.event_name or 'Management Login' }}</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    <form method="post">
+      <label>Username or Email</label>
+      <input type="text" name="username" autofocus required autocomplete="username">
+      <label>Password</label>
+      <input type="password" name="password" required autocomplete="current-password">
+      <label class="check" style="margin-top:.8rem">
+        <input type="checkbox" name="remember"> Remember me (24 hours)
+      </label>
+      <button class="btn" style="width:100%;margin-top:.8rem">Log In</button>
+    </form>
+    <p style="text-align:center;margin-top:1rem">
+      New here? <a href="{{ url_for('register') }}">Create an account</a>
+      &nbsp;·&nbsp; <a href="{{ url_for('forgot_password') }}">Forgot password?</a>
+    </p>
+    <div class="cred-hint">
+      <strong>Demo accounts</strong> — every account's password is currently
+      <code>nicknick</code>.<br>
+      e.g. admin · captain_smashers · player1 · u18_male
+    </div>
+  </div>
+</div>
+{% endblock %}

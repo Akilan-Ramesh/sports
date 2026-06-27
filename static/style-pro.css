@@ -1,0 +1,122 @@
+/* =====================================================================
+   Sports Meet — PRO UI overlay (dark neon-glow, glass, aurora, motion)
+   Loaded on top of style.css only when SPORTS_UI=pro.
+   ===================================================================== */
+
+/* Per-page entrance (flash-free; replaces cross-document View Transitions which
+   flickered against the fixed aurora/glass). */
+.ui-pro .content{ animation:pageIn .42s cubic-bezier(.22,.61,.36,1) both; }
+@keyframes pageIn{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
+
+.ui-pro{ --radius:18px; --radius-sm:13px; }
+.ui-pro h1,.ui-pro .brand,.ui-pro .stat .num,.ui-pro .score-big{ font-family:'Sora',var(--font-head); }
+
+/* ---- Animated aurora background ---- */
+body.ui-pro{ background:transparent; }
+.aurora{ position:fixed; inset:0; z-index:-2; overflow:hidden;
+  background:radial-gradient(1200px 700px at 75% -10%, #0c1a3a 0%, transparent 60%),
+             linear-gradient(165deg,#05080f 0%,#070b16 45%,#0a1224 100%); }
+[data-theme="light"] .aurora{
+  background:radial-gradient(1000px 600px at 80% -10%, #dbeafe 0%, transparent 60%),
+             linear-gradient(165deg,#eef3fb,#e7eefb); }
+.aurora span{ position:absolute; border-radius:50%; filter:blur(80px); opacity:.55; mix-blend-mode:screen; }
+[data-theme="light"] .aurora span{ opacity:.35; mix-blend-mode:multiply; }
+.aurora span:nth-child(1){ width:48vw;height:48vw; left:-10vw; top:-12vw; background:#1d4ed8; animation:drift1 24s ease-in-out infinite; }
+.aurora span:nth-child(2){ width:42vw;height:42vw; right:-8vw; top:6vh; background:#06b6d4; animation:drift2 28s ease-in-out infinite; }
+.aurora span:nth-child(3){ width:40vw;height:40vw; left:18vw; bottom:-16vw; background:#f97316; opacity:.35; animation:drift3 32s ease-in-out infinite; }
+@keyframes drift1{ 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(8vw,6vh) scale(1.12)} }
+@keyframes drift2{ 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-7vw,8vh) scale(1.08)} }
+@keyframes drift3{ 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(5vw,-6vh) scale(1.15)} }
+
+/* ---- Scroll progress bar ---- */
+.scroll-progress{ position:fixed; top:0; left:0; height:3px; width:0; z-index:100;
+  background:linear-gradient(90deg,#22d3ee,#3b82f6,#f97316);
+  box-shadow:0 0 14px rgba(56,189,248,.85); transition:width .08s linear; }
+
+/* ---- Glass topbar ---- */
+.ui-pro .topbar{
+  background:linear-gradient(105deg,rgba(30,58,138,.82),rgba(13,90,120,.78));
+  -webkit-backdrop-filter:blur(14px) saturate(150%); backdrop-filter:blur(14px) saturate(150%);
+  border-bottom:1px solid rgba(56,189,248,.30);
+  box-shadow:0 10px 34px -12px rgba(0,0,0,.7); }
+.ui-pro .brand{ text-shadow:0 0 18px rgba(56,189,248,.55); }
+
+/* ---- Glass panels (cards / stats / tables / sidebar) ---- */
+.ui-pro .card,.ui-pro .stat,.ui-pro .table-wrap,.ui-pro .sidebar,.ui-pro .role-menu{
+  background:rgba(15,24,44,.55);
+  -webkit-backdrop-filter:blur(16px) saturate(140%); backdrop-filter:blur(16px) saturate(140%);
+  border:1px solid rgba(120,170,255,.16);
+  box-shadow:0 10px 40px -16px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.05); }
+[data-theme="light"] .ui-pro .card,[data-theme="light"] .ui-pro .stat,
+[data-theme="light"] .ui-pro .table-wrap,[data-theme="light"] .ui-pro .sidebar,
+[data-theme="light"] .ui-pro .role-menu{
+  background:rgba(255,255,255,.62); border:1px solid rgba(120,150,210,.28);
+  box-shadow:0 10px 40px -18px rgba(30,50,120,.35), inset 0 1px 0 rgba(255,255,255,.6); }
+.ui-pro table,.ui-pro th{ background:transparent; }
+.ui-pro tbody tr:hover{ background:rgba(56,189,248,.08); }
+
+/* perspective so 3D tilt has depth */
+.ui-pro .content,.ui-pro .grid{ perspective:1100px; }
+.ui-pro .card,.ui-pro .stat{ transform-style:preserve-3d; will-change:transform;
+  transition:transform .18s ease, box-shadow .25s ease, border-color .25s ease; }
+.ui-pro .card:hover,.ui-pro a.card:hover,.ui-pro .stat:hover{
+  border-color:rgba(56,189,248,.55);
+  box-shadow:0 0 0 1px rgba(56,189,248,.30), 0 26px 80px -26px rgba(14,165,233,.65); }
+
+/* stat tile accent (no glow on the numbers themselves) */
+.ui-pro .stat::after{ opacity:.16; }
+
+/* ---- Sidebar active glow ---- */
+.ui-pro .sidebar a.active{ box-shadow:0 0 0 1px rgba(56,189,248,.4), 0 12px 26px -10px rgba(37,99,235,.8); }
+.ui-pro .sidebar a:hover{ background:rgba(56,189,248,.10); }
+
+/* ---- Buttons: glow + ripple + magnetic-ready ---- */
+.ui-pro .btn,.ui-pro .btn-sm{ position:relative; overflow:hidden;
+  box-shadow:0 10px 26px -10px rgba(37,99,235,.85), inset 0 0 0 1px rgba(150,190,255,.25);
+  transition:transform .12s ease, box-shadow .2s ease, filter .15s ease; }
+.ui-pro .btn:hover,.ui-pro .btn-sm:hover{ box-shadow:0 0 24px rgba(56,189,248,.5), 0 14px 30px -10px rgba(37,99,235,.9); }
+.ui-pro .btn-ghost{ box-shadow:none; }
+.ui-pro .rippl{ position:absolute; border-radius:50%; transform:scale(0);
+  background:rgba(255,255,255,.55); pointer-events:none; animation:rippl .6s ease-out; }
+@keyframes rippl{ to{ transform:scale(4); opacity:0; } }
+
+/* badges & chips get a soft glow */
+.ui-pro .role-chip{ box-shadow:0 0 14px rgba(0,0,0,.25); }
+.ui-pro .badge-alert{ box-shadow:0 0 12px rgba(225,29,72,.7); }
+.ui-pro .pill-disputed{ box-shadow:0 0 12px rgba(225,29,72,.35); }
+
+/* inputs glassier */
+.ui-pro input,.ui-pro select,.ui-pro textarea{ background:rgba(10,18,36,.5); }
+[data-theme="light"] .ui-pro input,[data-theme="light"] .ui-pro select,
+[data-theme="light"] .ui-pro textarea{ background:rgba(255,255,255,.7); }
+
+/* auth card glassy in pro */
+.ui-pro .auth-card{ background:rgba(15,24,44,.6);
+  -webkit-backdrop-filter:blur(20px); backdrop-filter:blur(20px);
+  border:1px solid rgba(120,170,255,.22); box-shadow:0 30px 80px -20px rgba(0,0,0,.7); }
+
+/* ---- Polish ---- */
+/* animated neon indicator on the active nav item */
+.ui-pro .sidebar a{ transition:background .16s, color .16s, transform .16s; }
+.ui-pro .sidebar a:hover{ transform:translateX(2px); }
+.ui-pro .sidebar a.active{ position:relative; }
+.ui-pro .sidebar a.active::before{ content:""; position:absolute; left:-.85rem; top:18%; bottom:18%;
+  width:4px; border-radius:0 4px 4px 0; background:linear-gradient(#22d3ee,#3b82f6);
+  box-shadow:0 0 12px rgba(56,189,248,.9); }
+
+/* gradient underline accent under the page title */
+.ui-pro .page-head>h1::after,.ui-pro .content>h1::after{ content:""; display:block; height:3px; width:54px;
+  margin-top:.4rem; border-radius:3px; background:var(--grad);
+  box-shadow:0 0 14px rgba(56,189,248,.5); }
+
+/* table rows get a subtle left accent on hover */
+.ui-pro tbody tr{ box-shadow:inset 3px 0 0 transparent; transition:background .12s, box-shadow .12s; }
+.ui-pro tbody tr:hover{ box-shadow:inset 3px 0 0 var(--brand-2); }
+
+/* keep section headings readable over glass */
+.ui-pro .card>h2{ letter-spacing:-.01em; }
+
+@media (prefers-reduced-motion:reduce){
+  .aurora span{ animation:none!important; }
+  .ui-pro .content{ animation:none!important; }
+}

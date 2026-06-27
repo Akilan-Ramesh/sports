@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "_audit.html" import audit_note %}
+{% block title %}Age Categories{% endblock %}
+{% block content %}
+<div class="page-head"><h1>🎂 Age Categories</h1></div>
+<p class="muted">Age groups that classify participants from their birth year. Add one at the top, edit below,
+then <strong>Save all changes</strong>. Removing a row keeps your other unsaved edits on screen — the
+deletion is applied when you save. IDs are generated automatically and ranges can't overlap.</p>
+
+<form method="post" class="bulk-edit">
+  <div class="card">
+    <h2>Add an age group</h2>
+    <div class="inline" style="align-items:end">
+      <div><label>Name</label><input type="text" name="new_name" value="{{ new_band.get('name','') }}" placeholder="Under 21"></div>
+      <div style="max-width:130px"><label>Min age</label><input type="number" name="new_min" value="{{ new_band.get('min','') }}"></div>
+      <div style="max-width:130px"><label>Max age</label><input type="number" name="new_max" value="{{ new_band.get('max','') }}"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Existing age groups <span class="muted">({{ categories|length }})</span></h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Name</th><th>Min age</th><th>Max age</th><th class="right">Actions</th></tr></thead>
+      <tbody>
+        {% for c in categories %}
+        <tr>
+          <td><input type="text" name="name_{{ c.id }}" value="{{ c.name }}">{{ audit_note(c) }}</td>
+          <td><input type="number" name="min_{{ c.id }}" value="{{ c.min_age }}" style="max-width:90px"></td>
+          <td><input type="number" name="max_{{ c.id }}" value="{{ c.max_age }}" style="max-width:90px"></td>
+          <td class="right actions" style="justify-content:flex-end">
+            <input type="hidden" name="del_{{ c.id }}" value="">
+            {% if c.in_use %}
+            <details class="usage">
+              <summary class="badge pill-pending" style="cursor:pointer;list-style:none">In use ▾</summary>
+              <div class="usage-pop">
+                <strong>Used in</strong>
+                <ul>{% for lbl, n in c.usage.items() %}<li><span>{{ lbl }}</span><strong>{{ n }}</strong></li>{% endfor %}</ul>
+              </div>
+            </details>
+            {% else %}
+            <button type="button" class="btn-sm btn-danger" onclick="rmRow(this,'{{ c.id }}')">Remove</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}<tr><td colspan="4" class="muted">No age groups.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <button class="btn" style="margin-top:1rem">Save all changes</button>
+  </div>
+</form>
+<script>
+function rmRow(btn, id){
+  var tr = btn.closest('tr');
+  tr.querySelector('input[name="del_'+id+'"]').value = '1';
+  tr.style.display = 'none';
+}
+document.querySelectorAll('details.usage').forEach(function(d) {
+  d.addEventListener('toggle', function() {
+    var pop = d.querySelector('.usage-pop');
+    if (!pop) return;
+    if (d.open) {
+      var rect = d.getBoundingClientRect();
+      pop.style.position = 'fixed';
+      pop.style.top = (rect.bottom + 4) + 'px';
+      pop.style.right = (window.innerWidth - rect.right) + 'px';
+      pop.style.left = 'auto';
+    } else {
+      pop.style.position = '';
+      pop.style.top = '';
+      pop.style.right = '';
+    }
+  });
+});
+document.addEventListener('click', function(e) {
+  document.querySelectorAll('details.usage[open]').forEach(function(d) {
+    if (!d.contains(e.target)) d.removeAttribute('open');
+  });
+});
+</script>
+{% endblock %}

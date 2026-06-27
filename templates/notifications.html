@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>🔔 Notifications</h1>
+  <form method="post" action="{{ url_for('notifications_read') }}">
+    <input type="hidden" name="id" value="all">
+    <button class="btn btn-ghost">Mark all read</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Preferences</h2>
+  <p class="muted">Silence the notifications you don't want. You can mute all, or pick types.</p>
+  <form method="post" action="{{ url_for('notifications_settings') }}">
+    <label class="check"><input type="checkbox" name="mute_all" {{ 'checked' if prefs.mute_all }}> Mute ALL notifications</label>
+    <div style="margin-top:.6rem">
+      {% for t, label in notify_types %}
+      <label class="check"><input type="checkbox" name="recv_{{ t }}" {{ 'checked' if t not in (prefs.muted or []) }}> {{ label }}</label>
+      {% endfor %}
+    </div>
+    <button class="btn" style="margin-top:.8rem">Save preferences</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Recent</h2>
+  {% if items %}
+  <ul style="list-style:none;padding:0;margin:0">
+    {% for n in items %}
+    <li class="{{ '' if n.read else 'notif-unread' }}" style="display:flex;gap:.6rem;align-items:center;padding:.55rem;border-bottom:1px solid var(--line)">
+      <span class="badge">{{ n.type }}</span>
+      <span style="flex:1">{% if n.link %}<a href="{{ n.link }}">{{ n.message }}</a>{% else %}{{ n.message }}{% endif %}</span>
+      {% if not n.read %}
+      <form method="post" action="{{ url_for('notifications_read') }}">
+        <input type="hidden" name="id" value="{{ n.id }}">
+        <button class="btn-sm btn-ghost">Mark read</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="muted">No notifications.</p>{% endif %}
+</div>
+{% endblock %}

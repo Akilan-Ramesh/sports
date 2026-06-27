@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New Program' if new else 'Edit Program' }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ '📋 New Program' if new else '✏️ Edit Program' }}</h1>
+  <a href="{{ url_for('admin_programs') }}" class="btn-sm">← Back</a>
+</div>
+
+<div class="card" style="max-width:580px">
+  <form method="post">
+    <div class="field">
+      <label>Program name <span class="req">*</span></label>
+      <input type="text" name="name" value="{{ form.get('name', p.get('name','')) }}" required autofocus placeholder="e.g. Community Sports Meet 2026">
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea name="description" rows="2" placeholder="Short description (optional)">{{ form.get('description', p.get('description','')) }}</textarea>
+    </div>
+    <div class="inline" style="gap:1.5rem;align-items:end">
+      <div class="field" style="flex:1">
+        <label>Start date</label>
+        <input type="date" name="start_date" value="{{ form.get('start_date', p.get('start_date','')) }}">
+      </div>
+      <div class="field" style="flex:1">
+        <label>End date</label>
+        <input type="date" name="end_date" value="{{ form.get('end_date', p.get('end_date','')) }}">
+      </div>
+    </div>
+    <div class="inline" style="gap:1.5rem;align-items:end">
+      <div class="field" style="flex:1">
+        <label>Status
+          <span class="muted" style="font-size:.75rem;font-weight:400"> — use the lifecycle buttons on the Programs page for quick transitions</span>
+        </label>
+        <select name="status">
+          {% set _status_hints = {
+            'planned':  'Future program, not yet configured — admin only',
+            'new':      'Program decided, setup not started — admin only',
+            'wip':      'Admin actively building sports & teams — admin only',
+            'draft':    'Setup complete, preview before launch — admin only',
+            'active':   'Live — visible to all players',
+            'completed':'Event over — read-only for non-admins'
+          } %}
+          {% for val, label in statuses %}
+          <option value="{{ val }}" {{ 'selected' if form.get('status', p.get('status','planned')) == val }}
+                  title="{{ _status_hints.get(val, '') }}">{{ label }} — {{ _status_hints.get(val, '') }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field" style="flex:0 0 auto;padding-bottom:.35rem">
+        <label class="checkbox-label">
+          <input type="checkbox" name="has_teams" value="1"
+                 {{ 'checked' if form.get('has_teams', p.get('has_teams', 1)|string) in ('1','on','True') }}>
+          Has teams
+        </label>
+      </div>
+    </div>
+    <div style="margin-top:1.5rem;display:flex;gap:.75rem">
+      <button class="btn">{{ 'Create program' if new else 'Save changes' }}</button>
+      <a href="{{ url_for('admin_programs') }}" class="btn-sm" style="align-self:center">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

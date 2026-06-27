@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "_audit.html" import audit_note %}
+{% block title %}Announcements{% endblock %}
+{% block content %}
+<h1>📢 Announcements</h1>
+{% if program %}<p class="program-context">📋 <strong>{{ program.name }}</strong></p>{% endif %}
+<p class="muted">Visible announcements appear on every player's home page. This is the only "changes" feed players see — the activity log stays staff-only.</p>
+
+<div class="card">
+  <h2>Post an announcement</h2>
+  <form method="post">
+    <input type="hidden" name="action" value="add">
+    <label>Title</label><input type="text" name="title" required>
+    <label>Body</label><textarea name="body" rows="3"></textarea>
+    <label class="check" style="margin-top:.6rem"><input type="checkbox" name="visible" checked> Visible to players (also sends a notification)</label>
+    <div><button class="btn" style="margin-top:.6rem">Post</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>All announcements</h2>
+  {% for a in items %}
+  <form method="post" style="border-bottom:1px solid var(--line);padding-bottom:.7rem;margin-bottom:.7rem">
+    <input type="hidden" name="action" value="edit"><input type="hidden" name="id" value="{{ a.id }}">
+    <label>Title</label><input type="text" name="title" value="{{ a.title }}">
+    <label>Body</label><textarea name="body" rows="2">{{ a.body }}</textarea>
+    <div class="actions" style="margin-top:.5rem">
+      <label class="check"><input type="checkbox" name="visible" {{ 'checked' if a.visible }}> Visible {% if not a.visible %}<span class="badge">hidden</span>{% endif %}</label>
+      <button class="btn btn-ghost">Save</button>
+      <button class="btn btn-danger" formnovalidate onclick="this.closest('form').querySelector('[name=action]').value='delete';return confirm('Delete this announcement?')">Delete</button>
+    </div>
+    {{ audit_note(a) }}
+  </form>
+  {% else %}<p class="muted">No announcements yet.</p>{% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_audit.html" import audit_note %}
+{% block title %}{{ 'Add' if new else 'Edit' }} Sport{% endblock %}
+{% block content %}
+<h1>{{ 'Add' if new else 'Edit' }} Sport {% if not new %}<code>{{ s.id }}</code>{% endif %}</h1>
+<form method="post" class="card" style="max-width:540px">
+  <label>Sport Category</label>
+  <select name="category_id">
+    <option value="">—</option>
+    {% for c in sport_categories %}<option value="{{ c.id }}" {{ 'selected' if s.category_id==c.id }}>{{ c.name }}</option>{% endfor %}
+  </select>
+
+  <label>Sport name *</label>
+  <input type="text" name="name" value="{{ s.name or '' }}" required placeholder="e.g. 100m Sprint">
+  <span class="help">Must be unique. Scoring, points, age groups, gender and schedule are set per Sport-Age-Category.</span>
+
+  <div class="actions" style="margin-top:1rem">
+    <button class="btn">{{ 'Add Sport' if new else 'Save' }}</button>
+    <a class="btn btn-ghost" href="{{ url_for('sports_master') }}">Cancel</a>
+  </div>
+  {% if not new %}{{ audit_note(s) }}{% endif %}
+</form>
+{% endblock %}

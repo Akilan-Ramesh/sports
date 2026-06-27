@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Forgot Password{% endblock %}
+{% block content_anon %}
+<div class="auth-wrap">
+  <div class="auth-card" style="max-width:420px">
+    <h1>🔒 Recover password</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}
+    {% endwith %}
+    {% if step == 'answer' %}
+    <p class="auth-sub">Answer your security question to set a new password.</p>
+    <form method="post">
+      <input type="hidden" name="username" value="{{ username }}">
+      <label>{{ question }}</label>
+      <input type="text" name="security_answer" required autocomplete="off" autofocus>
+      <label>New password *</label>
+      <input type="password" name="password" required autocomplete="new-password">
+      <label>Confirm new password *</label>
+      <input type="password" name="confirm" required autocomplete="new-password">
+      <button class="btn" style="width:100%;margin-top:.8rem">Reset password</button>
+    </form>
+    {% else %}
+    <p class="auth-sub">Enter your username — we'll ask your security question.</p>
+    <form method="post">
+      <input type="hidden" name="step" value="lookup">
+      <label>Username</label>
+      <input type="text" name="username" required autofocus autocomplete="username">
+      <button class="btn" style="width:100%;margin-top:.8rem">Continue</button>
+    </form>
+    {% endif %}
+    <p style="text-align:center;margin-top:1rem"><a href="{{ url_for('login') }}">Back to login</a></p>
+  </div>
+</div>
+{% endblock %}

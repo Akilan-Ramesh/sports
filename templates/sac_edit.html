@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "_audit.html" import audit_note %}
+{% block title %}Edit — {{ sac.sport_name }}{% endblock %}
+{% block content %}
+<h1>Edit Sport-Age-Category</h1>
+<form method="post" class="card" style="max-width:640px">
+  <div class="inline">
+    <div><label>Sport</label><select name="sport_id" required>
+      {% for s in sports %}<option value="{{ s.id }}" {{ 'selected' if sac.sport_id==s.id }}>{{ s.name }} ({{ s.category_name }})</option>{% endfor %}
+    </select></div>
+    <div><label>Age category</label><select name="age_category">
+      <option value="">All ages</option>
+      {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if sac.age_category==c.id }}>{{ c.name }}</option>{% endfor %}
+    </select></div>
+    <div><label>Gender</label><select name="gender">
+      <option value="">Mixed</option>
+      {% for d in divisions %}<option value="{{ d }}" {{ 'selected' if sac.gender==d }}>{{ d }}</option>{% endfor %}
+    </select></div>
+  </div>
+
+  <div class="inline">
+    <div><label>Format</label><select name="event_format">
+      {% for f in event_formats %}<option value="{{ f }}" {{ 'selected' if (sac.event_format or 'individual')==f }}>{{ format_labels[f] }}</option>{% endfor %}
+    </select></div>
+    <div><label>Scoring method</label><select name="scoring_mode" id="scoringMode" onchange="showHelp()">
+      {% for m in modes %}<option value="{{ m }}" {{ 'selected' if sac.scoring_mode==m }}>{{ m|capitalize }}</option>{% endfor %}
+    </select></div>
+    <div><label>Rounds (measured)</label><input type="number" name="rounds" min="1" max="10" value="{{ sac.rounds or 3 }}"></div>
+  </div>
+  <span class="help">Team / Doubles events are scored once per team (the team earns the points).</span>
+  <div class="flash flash-info" id="help">{{ scoring_help[sac.scoring_mode or 'placement'] }}</div>
+
+  <label>Points per place *</label>
+  <input type="text" name="points" value="{% for i in range(1, (sac.places or 3)+1) %}{{ sac.points_map.get(i|string, 0) }}{{ ',' if not loop.last }}{% endfor %}" placeholder="5,3,1">
+  <span class="help">Comma-separated, best first. Individual e.g. <code>5,3,1</code>; team games e.g. <code>10,5</code>.</span>
+
+  <h3 style="margin:1.2rem 0 .4rem">📅 Schedule</h3>
+  <div class="inline">
+    <div><label>Date</label><input type="date" name="date" value="{{ sac.date or '' }}"></div>
+    <div><label>Time</label><input type="text" name="slot" value="{{ sac.slot or '' }}" placeholder="09:30"></div>
+    <div><label>Status</label><select name="status">
+      {% for key, label, cls in statuses %}<option value="{{ key }}" {{ 'selected' if sac.status==key }}>{{ label }}</option>{% endfor %}
+    </select></div>
+  </div>
+  <label>Location</label>
+  <input type="text" name="location" value="{{ sac.location or '' }}" placeholder="e.g. Track A">
+
+  <div class="actions" style="margin-top:1rem">
+    <button class="btn">Save</button>
+    <a class="btn btn-ghost" href="{{ url_for('sac_list') }}">Cancel</a>
+    <a class="btn btn-ghost" href="{{ url_for('score_event', sid=sac.id) }}">Result Entry →</a>
+  </div>
+  {{ audit_note(sac) }}
+</form>
+<script>
+  var H = {{ scoring_help|tojson }};
+  function showHelp(){ document.getElementById('help').textContent = H[document.getElementById('scoringMode').value] || ''; }
+</script>
+{% endblock %}

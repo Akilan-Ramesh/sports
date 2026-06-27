@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Sports Event{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>🎯 Sports Event</h1>
+  <a class="btn" href="{{ url_for('sac_new') }}">+ Add Sports Event</a>
+</div>
+<p class="muted">Which sport runs for which age category &amp; gender (under each <a href="{{ url_for('sports_master') }}">Sport</a>).
+Each row has its own scoring, schedule, status &amp; results.</p>
+
+<form class="card toolbar" method="get">
+  <div><label>Sport Category</label><select name="category" onchange="this.form.submit()">
+    <option value="">All categories</option>
+    {% for c in sport_categories %}<option value="{{ c.id }}" {{ 'selected' if filters.category==c.id }}>{{ c.name }}</option>{% endfor %}
+  </select></div>
+  <div><label>Age Category</label><select name="age" onchange="this.form.submit()">
+    <option value="">All ages</option>
+    {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if filters.age==c.id }}>{{ c.name }}</option>{% endfor %}
+  </select></div>
+  <div><label>Gender</label><select name="gender" onchange="this.form.submit()">
+    <option value="">All</option>
+    {% for d in divisions %}<option value="{{ d }}" {{ 'selected' if filters.gender==d }}>{{ d }}</option>{% endfor %}
+  </select></div>
+  <div><label>Status</label><select name="status" onchange="this.form.submit()">
+    <option value="">All statuses</option>
+    {% for key, label, cls in statuses %}<option value="{{ key }}" {{ 'selected' if filters.status==key }}>{{ label }}</option>{% endfor %}
+  </select></div>
+  <div><label>Sport</label><select name="sport" id="fSport" onchange="this.form.submit()">
+    <option value="">All sports</option>
+    {% for s in sports %}<option value="{{ s.id }}" data-cat="{{ s.category_id or '' }}" {{ 'selected' if filters.sport==s.id }}>{{ s.name }}</option>{% endfor %}
+  </select></div>
+  <div><label>&nbsp;</label><a class="btn btn-ghost" href="{{ url_for('sac_list') }}">Clear</a></div>
+</form>
+<script>
+// Sport options cascade from the chosen Sport Category.
+(function(){
+  var cat=document.querySelector('select[name=category]'), sp=document.getElementById('fSport');
+  if(!cat||!sp) return;
+  function cascade(){
+    var cv=cat.value;
+    Array.prototype.forEach.call(sp.options, function(o){
+      if(!o.value) return;
+      o.hidden = cv && o.dataset.cat!==cv;
+    });
+    if(sp.selectedOptions.length && sp.selectedOptions[0].hidden){ sp.value=''; }
+  }
+  cat.addEventListener('change',cascade); cascade();
+})();
+</script>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Sport Category</th><th>Sport</th><th>Age</th><th>Gender</th><th>Scoring</th><th>Points</th><th>Date / Time / Location</th><th>Status</th><th class="right">Actions</th></tr></thead>
+  <tbody>
+    {% for e in sacs %}
+    {% set sm = STATUS_META.get(e.status, ('New','pill-draft')) %}
+    <tr {{ 'style=opacity:.55' if e.archived }}>
+      <td><span class="badge">{{ e.category_name }}</span></td>
+      <td>{{ e.sport_name }}</td>
+      <td>{{ e.age_category or 'All' }}</td>
+      <td>{{ e.gender or 'Mixed' }}</td>
+      <td>{{ e.scoring_mode }}</td>
+      <td>{% for i in range(1, e.places+1) %}{{ e.points_map.get(i|string, 0) }}{{ '/' if not loop.last }}{% endfor %}</td>
+      <td>{% if e.date %}{{ e.date|dmy }} {{ e.slot or "" }}<br><span class="muted">{{ e.location or '—' }}</span>{% else %}<span class="muted">not scheduled</span>{% endif %}</td>
+      <td><span class="badge {{ sm[1] }}">{{ sm[0] }}{% if e.archived %} · archived{% endif %}</span></td>
+      <td class="right actions" style="justify-content:flex-end">
+        {% if e.archived %}
+        <a class="btn-sm btn-ghost" href="{{ url_for('result_detail', sid=e.id) }}">View results</a>
+        <form method="post" action="{{ url_for('sac_archive', sid=e.id) }}">
+          <button class="btn-sm btn-ghost">Unarchive</button></form>
+        {% else %}
+        <a class="btn-sm btn-ghost" href="{{ url_for('sac_edit', sid=e.id) }}">Edit</a>
+        <a class="btn-sm" href="{{ url_for('score_event', sid=e.id) }}">Result Entry</a>
+        <form method="post" action="{{ url_for('sac_archive', sid=e.id) }}">
+          <button class="btn-sm btn-ghost">Archive</button></form>
+        <form method="post" action="{{ url_for('sac_delete', sid=e.id) }}" onsubmit="return confirm('Delete this row? If it has results it will be archived instead.')">
+          <button class="btn-sm btn-danger">Delete</button></form>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="9" class="muted">No sports events match — adjust the filter, or use “+ Add Sports Event”.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

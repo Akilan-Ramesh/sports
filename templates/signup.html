@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Sign-up' if user.acting == 'captain' else 'Sports Sign-up' }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>📝 {{ 'Sign-up' if user.acting == 'captain' else 'Sports Sign-up' }}</h1>
+</div>
+<p class="muted">{% if self_only %}Tick the sports you want to take part in, then save.{% else %}Choose a participant, then tick the sports they want to take part in. Use the search box to find a sport fast.{% endif %}</p>
+
+{% if not people %}
+<div class="card muted">{% if self_only %}Your account isn't linked to a roster entry yet — a captain needs to add you to a team first.{% else %}No participants yet. Add participants first, then sign them up here.{% endif %}</div>
+{% else %}
+<form class="card toolbar" method="get" {{ 'style=display:none' if self_only }}>
+  {% if not self_only %}
+  <div style="flex:1.4"><label>Find participant</label>
+    <input type="text" id="pSearch" placeholder="🔍 Filter by name…" onkeyup="filterPeople()"></div>
+  {% if show_team_filter %}
+  <div><label>Team</label><select id="pTeam" onchange="filterPeople()"><option value="">All</option>
+    {% for t in teams %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}</select></div>
+  {% endif %}
+  <div><label>Gender</label><select id="pGender" onchange="filterPeople()"><option value="">All</option>
+    {% for d in divisions %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></div>
+  <div><label>Category</label><select id="pCat" onchange="filterPeople()"><option value="">All</option>
+    {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
+  {% endif %}
+  <div style="flex:1">
+    <label>Participant</label>
+    <select name="pid" id="pSelect" onchange="this.form.submit()">
+      {% for p in people %}
+      <option value="{{ p.id }}" data-name="{{ p.name|lower }}" data-team="{{ p.team or '' }}"
+              data-div="{{ p.division }}" data-cat="{{ p.category or '' }}"
+              {{ 'selected' if selected and selected.id==p.id }}>{{ p.name }} ({{ p.division }}, {{ p.category or '—' }})</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+{% if selected %}
+<form method="post">
+  <input type="hidden" name="pid" value="{{ selected.id }}">
+  <div class="card">
+    <div class="page-head">
+      <h2 style="margin:0">Sports for {{ selected.name }}</h2>
+      <input type="text" id="sportSearch" placeholder="🔍 Search sports…" style="max-width:260px" onkeyup="filterSports()">
+    </div>
+    <div class="legend">
+      <span><i class="sw sw-elig"></i> You can play (your age &amp; gender)</span>
+      <span><i class="sw sw-reg"></i> Registered</span>
+      <span>🔒 Result recorded — locked</span>
+    </div>
+    {% for g in grouped %}
+    <div class="sport-group" data-cat="{{ g.cat.name|lower }}">
+      <h3 style="margin:.8rem 0 .3rem">{{ g.cat.name }}</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.45rem">
+        {% for e in g.events %}
+        {% if e.id in locked %}
+        <label class="check sport-item reg" data-name="{{ e.name|lower }}" title="Result already recorded — can't unregister. An admin can adjust the result.">
+          <input type="checkbox" checked disabled> 🔒 {{ e.name }}
+        </label>
+        {% else %}
+        <label class="check sport-item {{ 'reg' if e.id in chosen }}" data-name="{{ e.name|lower }}">
+          <input type="checkbox" name="events" value="{{ e.id }}" {{ 'checked' if e.id in chosen }} onchange="this.closest('.sport-item').classList.toggle('reg', this.checked)">
+          {{ e.name }}
+        </label>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <p class="muted">No sports defined yet. Ask the admin to add sports.</p>
+    {% endfor %}
+    <div class="actions" style="margin-top:1rem">
+      <button class="btn">Save sign-ups</button>
+      <a class="btn btn-ghost" href="{{ url_for('participants_list') }}">Back to participants</a>
+    </div>
+  </div>
+</form>
+{% endif %}
+{% endif %}
+
+<script>
+function filterPeople(){
+  var q=(document.getElementById('pSearch')||{}).value||'';
+  q=q.toLowerCase();
+  var team=(document.getElementById('pTeam')||{}).value||'';
+  var gen=(document.getElementById('pGender')||{}).value||'';
+  var cat=(document.getElementById('pCat')||{}).value||'';
+  var sel=document.getElementById('pSelect'); var shown=0;
+  Array.prototype.forEach.call(sel.options,function(o){
+    var ok = o.dataset.name.indexOf(q)>-1
+      && (!team || o.dataset.team===team)
+      && (!gen || o.dataset.div===gen)
+      && (!cat || o.dataset.cat===cat);
+    o.hidden = !ok; if(ok) shown++;
+  });
+  // keep a visible option selected
+  if(sel.selectedOptions.length && sel.selectedOptions[0].hidden){
+    for(var i=0;i<sel.options.length;i++){ if(!sel.options[i].hidden){ sel.selectedIndex=i; break; } }
+  }
+}
+function filterSports(){
+  var q=document.getElementById('sportSearch').value.toLowerCase();
+  document.querySelectorAll('.sport-group').forEach(function(g){
+    var any=false;
+    g.querySelectorAll('.sport-item').forEach(function(it){
+      var match = it.dataset.name.indexOf(q)>-1;
+      it.style.display = match ? 'inline-flex' : 'none';
+      if(match) any=true;
+    });
+    g.style.display = any ? 'block' : 'none';
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Import / Backup{% endblock %}
+{% block content %}
+<h1>💾 Import, Export & Backup</h1>
+
+<div class="grid grid-2" style="align-items:start">
+  <div class="card">
+    <h2>Import participants</h2>
+    <p class="muted">Upload a CSV or JSON file. Columns: <code>name, team, division, birth_year</code>. Age category is derived from the birth year.</p>
+    <form method="post" action="{{ url_for('import_participants') }}" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".csv,.json" required>
+      <button class="btn" style="margin-top:.8rem">Import</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Export data</h2>
+    <p class="muted">Download collections as JSON.</p>
+    <div class="actions">
+      <a class="btn btn-ghost" href="{{ url_for('export_collection', collection='participants') }}">Participants</a>
+      <a class="btn btn-ghost" href="{{ url_for('export_collection', collection='events') }}">Events</a>
+      <a class="btn btn-ghost" href="{{ url_for('export_collection', collection='results') }}">Results</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Full backup</h2>
+    <p class="muted">Download a copy of the entire SQLite database. Keep an off-server copy.</p>
+    <a class="btn btn-ok" href="{{ url_for('backup') }}">Download database (.db)</a>
+  </div>
+
+  <div class="card">
+    <h2>PDF export</h2>
+    <p class="muted">Result sheets, call sheets and the schedule each have a <strong>Print / PDF</strong> button (use your browser's "Save as PDF"). This keeps the app dependency-free for shared hosting.</p>
+  </div>
+</div>
+{% endblock %}

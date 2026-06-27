@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Results — {{ e.sport_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ e.sport_name }} <span class="muted" style="font-size:1rem">{{ e.age_category or 'All' }} · {{ e.gender or 'Mixed' }}</span></h1>
+  <span class="badge pill-{{ e.approval_status }}">{{ {'draft':'To score','pending':'Pending approval','disputed':'Disputed','approved':'Approved'}[e.approval_status] }}</span>
+</div>
+<p class="muted">Scoring: {{ e.scoring_mode }}{% if e.location %} · {{ e.location }}{% endif %}{% if e.date %} · {{ e.date|dmy }} {{ e.slot or '' }}{% endif %}</p>
+
+{% if not can_enter %}
+<div class="flash flash-warning">Results can be entered once the event date has arrived
+({% if e.date %}{{ e.date|dmy }}{% else %}no date set yet{% endif %}). The form is read-only until then.</div>
+{% endif %}
+{% if e.finalised and not user.is_admin %}
+<div class="flash flash-warning">These results are approved and locked. Ask the admin to withhold/reopen them to make changes.</div>
+{% elif e.approval_status == 'pending' %}
+<div class="flash flash-info">Results submitted — awaiting captain approval. You can still edit and re-submit.</div>
+{% elif e.approval_status == 'disputed' %}
+<div class="flash flash-warning">A captain disputed these results. Adjust them and re-submit, or the admin will decide.</div>
+{% endif %}
+
+{% if is_team %}
+{# ---- Line-ups: who actually competes for each team (set any time) ---- #}
+<div class="card">
+  <h2>👥 Team line-ups</h2>
+  <p class="muted">Tick which signed-up players make up each team's
+    {% if e.event_format == 'doubles' %}<strong>pair (exactly 2)</strong>{% else %}team{% endif %}.
+    Line-ups can be organised any time — even before the event date. You may only edit your own team's line-up.</p>
+  <form method="post">
+    <input type="hidden" name="action" value="lineup">
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Team</th><th>Signed-up players — tick those competing</th></tr></thead>
+      <tbody>
+      {% for row in elig_teams %}
+        {% set editable = can_edit_lineup(row.team.id) %}
+        {% set chosen = row.members|map(attribute='id')|list %}
+        <tr>
+          <td><span class="team-dot" style="background:{{ row.team.colour or '#888' }}"></span>{{ row.team.name }}
+            {% if not editable %}<br><span class="muted" style="font-size:.78rem">read-only</span>{% endif %}</td>
+          <td>
+            {% for pl in row.players %}
+              <label style="display:inline-flex;align-items:center;gap:.3rem;margin:.15rem .7rem .15rem 0">
+                <input type="checkbox" name="lineup_{{ row.team.id }}" value="{{ pl.id }}"
+                  {{ 'checked' if pl.id in chosen }} {{ '' if editable else 'disabled' }}>{{ pl.name }}
+              </label>
+            {% else %}<span class="muted">No signed-up players.</span>{% endfor %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="2" class="muted">No teams have players signed up for this event yet.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% if elig_teams %}<div class="actions" style="margin-top:.6rem"><button class="btn">Save line-ups</button></div>{% endif %}
+  </form>
+</div>
+{% endif %}
+
+<form method="post">
+{% if is_team %}
+<p class="muted">This is a <strong>{{ e.event_format }}</strong> event — enter one finishing place per team. The team earns the points.</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Team</th><th>Competing players</th><th>Place (1/2/3…)</th></tr></thead>
+  <tbody>
+  {% for row in elig_teams %}
+    {% set r = results.get(row.team.id) %}
+    <tr>
+      <td><span class="team-dot" style="background:{{ row.team.colour or '#888' }}"></span>{{ row.team.name }}</td>
+      <td>{% for pl in row.members %}{{ pl.name }}{{ ', ' if not loop.last }}{% endfor %}{% if not row.members %}<span class="muted">— none picked —</span>{% endif %} <span class="muted">({{ row.members|length }})</span></td>
+      <td><input type="number" min="0" style="width:90px" name="t_{{ row.team.id }}_place" value="{{ r.place if r and r.place else '' }}" placeholder="—"></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="3" class="muted">No teams have players signed up for this event yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Reg</th><th>Name</th><th>Team</th>
+      {% if e.scoring_mode == 'measured' %}
+        {% for i in range(1, (e.rounds or 3)+1) %}<th>R{{ i }}</th>{% endfor %}
+        <th>Best</th><th>Pos</th>
+      {% elif e.scoring_mode == 'participation' %}
+        <th>Took part</th><th>Place</th>
+      {% else %}
+        <th>Place (1/2/3…)</th>
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+  {% for p in participants %}
+    {% set r = results.get(p.id) %}
+    <tr>
+      <td><code>{{ p.id }}</code></td>
+      <td>{{ p.name }}</td>
+      <td>{{ team_name(p.team) }}</td>
+      {% if e.scoring_mode == 'measured' %}
+        {% for i in range(1, (e.rounds or 3)+1) %}
+          <td><input type="number" step="0.01" style="width:80px" name="p_{{ p.id }}_r{{ i }}"
+            value="{{ (r.rounds[i-1] if r and r.rounds and r.rounds[i-1] is not none else '') }}"></td>
+        {% endfor %}
+        <td><strong>{{ r.best if r and r.best is not none else '—' }}</strong></td>
+        <td>{% if r and r.place %}<span class="medal-{{ r.place if r.place<=3 else '' }}">{{ r.place }}</span>{% else %}—{% endif %}</td>
+      {% elif e.scoring_mode == 'participation' %}
+        <td><input type="checkbox" name="p_{{ p.id }}_part" {{ 'checked' if r and r.participated }}></td>
+        <td><input type="number" min="0" style="width:70px" name="p_{{ p.id }}_place" value="{{ r.place if r and r.place else '' }}" placeholder="—"></td>
+      {% else %}
+        <td><input type="number" min="0" style="width:90px" name="p_{{ p.id }}_place" value="{{ r.place if r and r.place else '' }}" placeholder="—"></td>
+      {% endif %}
+    </tr>
+  {% else %}
+    <tr><td colspan="9" class="muted">No participants signed up for this sport in {{ e.age_category or 'this age group' }} · {{ e.gender or 'mixed' }}.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% if (participants or elig_teams) and can_enter and not (e.finalised and not user.is_admin) %}
+<div class="actions" style="margin-top:1rem">
+  <button class="btn">Save Results</button>
+  <a class="btn btn-ghost" href="{{ url_for('result_detail', sid=e.id) }}">View results</a>
+  <span class="help">Saving recomputes placements &amp; points instantly.</span>
+</div>
+{% endif %}
+</form>
+
+{% if not e.finalised and can_enter %}
+<div class="card" style="margin-top:1rem">
+  {% if user.is_admin %}
+  <h2>Publish</h2>
+  <p class="muted">As admin you have the final say — publishing makes the results official immediately, no approval needed.</p>
+  <form method="post" action="{{ url_for('score_submit', sid=e.id) }}">
+    <button class="btn btn-ok">Publish results (final)</button>
+  </form>
+  {% else %}
+  <h2>Approval</h2>
+  <p class="muted">When you've entered all the results, submit them. The captains of the teams involved are asked to agree; if all agree the results publish automatically. If a captain disagrees, the admin decides.</p>
+  <form method="post" action="{{ url_for('score_submit', sid=e.id) }}">
+    <button class="btn btn-ok">Submit results for approval</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

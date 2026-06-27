@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Volunteers{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>🙋 Volunteers <span class="muted">({{ volunteers|length }})</span></h1>
+</div>
+<p class="muted">A dedicated space for volunteers. {% if can_edit %}Use the filters to find someone fast, then toggle them on the roster.{% endif %}</p>
+
+<div class="card">
+  <h2>Current volunteers</h2>
+  {% if volunteers %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Team</th><th>Gender</th><th>Category</th>{% if can_edit %}<th></th>{% endif %}</tr></thead>
+    <tbody>
+      {% for p in volunteers %}
+      {% set tm = teams|selectattr('id','equalto',p.team)|first %}
+      <tr>
+        <td data-label="Name">{{ p.name }}</td>
+        <td data-label="Team"><span class="team-dot" style="background:{{ tm.colour if tm else '#888' }}"></span>{{ tm.name if tm else 'Unassigned' }}</td>
+        <td data-label="Gender">{{ p.division }}</td><td data-label="Category">{{ p.category or '—' }}</td>
+        {% if can_edit %}<td data-label="" class="right">
+          <form method="post" action="{{ url_for('volunteer_toggle', pid=p.id) }}"><button class="btn-sm btn-ghost">Remove</button></form>
+        </td>{% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">No volunteers yet.</p>{% endif %}
+</div>
+
+{% if can_edit %}
+<div class="card">
+  <h2>Roster — add a volunteer</h2>
+  <form class="toolbar" method="get" style="margin-bottom:1rem">
+    <div style="flex:2"><label>Search</label><input type="text" name="q" value="{{ filters.q }}" placeholder="Name or Reg No."></div>
+    {% if show_team_filter %}
+    <div><label>Team</label><select name="team"><option value="">All</option>
+      {% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if filters.team==t.id }}>{{ t.name }}</option>{% endfor %}</select></div>
+    {% endif %}
+    <div><label>Gender</label><select name="division"><option value="">All</option>
+      {% for d in divisions %}<option value="{{ d }}" {{ 'selected' if filters.division==d }}>{{ d }}</option>{% endfor %}</select></div>
+    <div><label>Category</label><select name="category"><option value="">All</option>
+      {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if filters.category==c.id }}>{{ c.name }}</option>{% endfor %}</select></div>
+    <div><label>&nbsp;</label><button class="btn">Filter</button></div>
+  </form>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Team</th><th>Gender</th><th>Age</th><th>Category</th><th>Volunteer?</th><th></th></tr></thead>
+    <tbody>
+      {% for p in roster %}
+      {% set tm = teams|selectattr('id','equalto',p.team)|first %}
+      <tr>
+        <td data-label="Name">{{ p.name }}</td>
+        <td data-label="Team"><span class="team-dot" style="background:{{ tm.colour if tm else '#888' }}"></span>{{ tm.name if tm else 'Unassigned' }}</td>
+        <td data-label="Gender">{{ p.division }}</td><td data-label="Age">{{ p.age if p.age is not none else '—' }}</td><td data-label="Category">{{ p.category or '—' }}</td>
+        <td data-label="Volunteer?">{{ 'Yes' if p.volunteer else 'No' }}</td>
+        <td data-label="" class="right">
+          <form method="post" action="{{ url_for('volunteer_toggle', pid=p.id) }}">
+            <button class="btn-sm {{ 'btn-ghost' if p.volunteer else 'btn-ok' }}">{{ 'Remove' if p.volunteer else 'Make volunteer' }}</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="muted">No participants match.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

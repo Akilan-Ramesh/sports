@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}About{% endblock %}
+{% block content %}{% block content_anon %}
+<div style="max-width:640px;margin:2rem auto;padding:0 1rem">
+  <h1>🏅 About {{ cfg.event_name or 'Sports Meet' }}</h1>
+  <div class="card">
+    <p>{{ cfg.event_name or 'Sports Meet' }} is an online platform for organising and tracking
+    community sports events — sign-ups, scheduling, scoring, team standings, and results —
+    all in one place.</p>
+
+    <h2 style="margin-top:1.2rem">Features</h2>
+    <ul style="padding-left:1.2rem;line-height:1.9">
+      <li>Player sign-ups with age category and gender matching</li>
+      <li>Captain tools — team roster, lineup selection, result entry</li>
+      <li>Live team standings and individual results</li>
+      <li>Admin controls — sports, programs, participants, announcements</li>
+      <li>Mobile-friendly — works on any phone browser</li>
+    </ul>
+
+    {% if cfg.sender_email %}
+    <h2 style="margin-top:1.2rem">Contact</h2>
+    <p><a href="mailto:{{ cfg.sender_email }}">{{ cfg.sender_email }}</a></p>
+    {% endif %}
+
+    <p class="muted" style="margin-top:1.5rem;font-size:.82rem">
+      Schema v{{ schema_version }} &nbsp;·&nbsp;
+      <a href="{{ url_for('whats_new') if user else '#' }}">What's New</a>
+    </p>
+  </div>
+
+  {% if not user %}
+  <div style="margin-top:1rem;text-align:center">
+    <a class="btn" href="{{ url_for('login') }}">Log in</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}{% endblock %}

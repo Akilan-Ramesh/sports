@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Call Sheet — {{ e.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Call Sheet</h1>
+  <button class="btn btn-ghost no-print" onclick="window.print()">🖨 Print / PDF</button>
+</div>
+<div class="card">
+  <h2>{{ e.sport_name }} <span class="badge">{{ e.category_name }}</span></h2>
+  <p class="muted">
+    {{ e.age_category or 'All ages' }} · {{ e.gender or 'Mixed' }} ·
+    Date: <strong>{{ e.date|dmy }}</strong> ·
+    Time: <strong>{{ e.slot or '—' }}</strong> ·
+    Location: <strong>{{ e.location or '—' }}</strong> ·
+    Scoring: {{ e.scoring_mode }}
+    {% if e.specifics %}<br>{{ e.specifics }}{% endif %}
+  </p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>✓</th><th>Reg</th><th>Name</th><th>Team</th><th>Category</th><th>Gender</th></tr></thead>
+    <tbody>
+    {% for p in participants %}
+      <tr>
+        <td style="width:2rem">☐</td>
+        <td><code>{{ p.id }}</code></td>
+        <td>{{ p.name }}</td>
+        <td>{{ team_name(p.team) }}</td>
+        <td>{{ cat_name(p.category) }}</td>
+        <td>{{ p.division }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">No participants enrolled in this event.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="muted" style="margin-top:1rem">Total expected: {{ participants|length }}</p>
+</div>
+{% endblock %}

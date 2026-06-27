@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% from "_audit.html" import audit_note %}
+{% block title %}{{ 'Add' if new else 'Edit' }} Participant{% endblock %}
+{% block content %}
+<h1>{{ 'Add' if new else 'Edit' }} Participant {% if not new %}<code>{{ p.id }}</code>{% endif %}</h1>
+<form method="post" class="card" style="max-width:640px">
+  <label>Full name *</label>
+  <input type="text" name="name" value="{{ p.name or '' }}" required>
+
+  <div class="inline">
+    <div>
+      <label>Team</label>
+      {% if user.is_admin %}
+      <select name="team">
+        <option value="">Unassigned</option>
+        {% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if p.team==t.id }}>{{ t.name }}</option>{% endfor %}
+      </select>
+      {% else %}
+      {% set _my_team = teams|selectattr('id','equalto',user.team)|first %}
+      <input type="text" value="{{ _my_team.name if _my_team else 'Unknown' }}" disabled>
+      <span class="help">Captains add to their own team.</span>
+      {% endif %}
+    </div>
+    <div>
+      <label>Gender *</label>
+      <select name="division" required>
+        <option value="">Select…</option>
+        {% for d in divisions %}<option value="{{ d }}" {{ 'selected' if p.division==d }}>{{ d }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="inline">
+    <div>
+      <label>Birth year *</label>
+      <input type="number" name="birth_year" min="1900" max="{{ year }}" value="{{ p.birth_year if p.birth_year else '' }}" required>
+      <span class="help">Age category is calculated automatically{% if p.age is not none %} (currently age {{ p.age }}){% endif %}.</span>
+    </div>
+  </div>
+
+  <div class="actions" style="margin-top:1rem">
+    <button class="btn">Save</button>
+    <a class="btn btn-ghost" href="{{ url_for('participants_list') }}">Cancel</a>
+    {% if not new %}<a class="btn btn-ghost" href="{{ url_for('signup', pid=p.id) }}">Choose sports →</a>{% endif %}
+  </div>
+  {% if not new %}{{ audit_note(p) }}{% endif %}
+</form>
+
+{% if not new and (user.is_admin or p.team==user.team) %}
+<div style="max-width:640px;margin-top:.6rem;display:flex;gap:.5rem;flex-wrap:wrap">
+  {% if user.is_admin and p.get('user') %}
+  <form method="post" action="{{ url_for('user_reset_default', uid=p['user']) }}"
+        onsubmit="return confirm('Reset {{ p.name }}\'s password to default?')"
+        style="display:contents">
+    <input type="hidden" name="next" value="{{ url_for('participant_edit', pid=p.id) }}">
+    <button class="btn btn-ghost" style="color:var(--danger)">Reset password</button>
+  </form>
+  {% endif %}
+  <form method="post" action="{{ url_for('participant_delete', pid=p.id) }}"
+        onsubmit="return confirm('Remove this participant? If they have results they will be archived.')"
+        style="display:contents">
+    <button class="btn btn-danger">Remove participant</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Teams{% endblock %}
+{% block content %}
+<h1>🚩 Teams</h1>
+{% if program %}<p class="program-context">📋 <strong>{{ program.name }}</strong></p>{% endif %}
+<p class="muted">Add a team at the top. Edit names/colours below — changed rows are highlighted; one <strong>Save all</strong> saves them together. Team names must be unique.</p>
+
+<div class="card">
+  <h2>Add a team</h2>
+  <form method="post" class="inline" style="align-items:end">
+    <input type="hidden" name="action" value="add">
+    <div><label>Team name</label><input type="text" name="name" required placeholder="e.g. Falcons"></div>
+    <div style="max-width:130px"><label>Colour</label><input type="color" name="colour" value="#1d4ed8" style="height:42px;padding:.2rem"></div>
+    <div><label>&nbsp;</label><button class="btn">+ Add team</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="page-head"><h2 style="margin:0">Existing teams <span class="muted">({{ teams|length }})</span></h2></div>
+  <form method="post" class="bulk-edit" id="teamsForm">
+    <input type="hidden" name="action" value="save_all">
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Name</th><th>Colour</th><th>Players</th><th>Created by</th><th>Last edited</th><th class="right">Actions</th></tr></thead>
+      <tbody>
+        {% for t in teams %}
+        <tr>
+          <td><input type="text" name="name_{{ t.id }}" value="{{ t.name }}"></td>
+          <td><input type="color" name="colour_{{ t.id }}" value="{{ t.colour }}" style="max-width:64px;height:38px;padding:.15rem"></td>
+          <td><span class="badge">{{ t.n }}</span></td>
+          <td class="muted">{{ display_username(t.created_by) }}{% if t.created_at %} · {{ t.created_at|ts_dmy }}{% endif %}</td>
+          <td class="muted">{% if t.modified_at %}{{ display_username(t.modified_by) }} · {{ t.modified_at|ts_dmy }}{% else %}—{% endif %}</td>
+          <td class="right actions" style="justify-content:flex-end">
+            {% if t.in_use %}
+            <details class="usage">
+              <summary class="badge pill-pending" style="cursor:pointer;list-style:none">In use ▾</summary>
+              <div class="usage-pop">
+                <strong>Used in</strong>
+                <ul>{% for lbl, n in t.usage.items() %}<li><span>{{ lbl }}</span><strong>{{ n }}</strong></li>{% endfor %}</ul>
+              </div>
+            </details>
+            {% else %}
+            <button class="btn-sm btn-danger" form="del-{{ t.id }}">Delete</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}<tr><td colspan="6" class="muted">No teams yet.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <button class="btn" style="margin-top:1rem">Save all</button>
+  </form>
+  {# external per-row delete forms (kept outside the bulk form — forms can't nest) #}
+  {% for t in teams %}
+  <form method="post" id="del-{{ t.id }}" onsubmit="return confirm('Delete {{ t.name }}? Its players become unassigned.')" style="display:none">
+    <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ t.id }}">
+  </form>
+  {% endfor %}
+</div>
+<script>
+document.querySelectorAll('details.usage').forEach(function(d) {
+  d.addEventListener('toggle', function() {
+    var pop = d.querySelector('.usage-pop');
+    if (!pop) return;
+    if (d.open) {
+      var rect = d.getBoundingClientRect();
+      pop.style.position = 'fixed';
+      pop.style.top = (rect.bottom + 4) + 'px';
+      pop.style.right = (window.innerWidth - rect.right) + 'px';
+      pop.style.left = 'auto';
+    } else {
+      pop.style.position = '';
+      pop.style.top = '';
+      pop.style.right = '';
+    }
+  });
+});
+document.addEventListener('click', function(e) {
+  document.querySelectorAll('details.usage[open]').forEach(function(d) {
+    if (!d.contains(e.target)) d.removeAttribute('open');
+  });
+});
+</script>
+{% endblock %}

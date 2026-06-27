@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "_audit.html" import audit_note %}
+{% block title %}Sport Categories{% endblock %}
+{% block content %}
+<h1>🗂 Sport Categories</h1>
+{% if program %}<p class="program-context">📋 <strong>{{ program.name }}</strong></p>{% endif %}
+<p class="muted">Top-level groupings that sports are filed under. Add one at the top; edit names below — changed rows are highlighted and saved together with <strong>Save all</strong>. Names must be unique.</p>
+
+<div class="card">
+  <h2>Add a category</h2>
+  <form method="post" class="inline" style="align-items:end">
+    <input type="hidden" name="action" value="add">
+    <div style="flex:1"><label>Category name</label><input type="text" name="name" required placeholder="e.g. Indoor Games"></div>
+    <div><label>&nbsp;</label><button class="btn">+ Add category</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="page-head"><h2 style="margin:0">Existing categories <span class="muted">({{ categories|length }})</span></h2></div>
+  <form method="post" class="bulk-edit" id="catsForm">
+    <input type="hidden" name="action" value="save_all">
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Name</th><th>Sports</th><th class="right">Actions</th></tr></thead>
+      <tbody>
+        {% for c in categories %}
+        <tr>
+          <td><input type="text" name="name_{{ c.id }}" value="{{ c.name }}"></td>
+          <td><span class="badge">{{ c.n }}</span></td>
+          <td class="right actions" style="justify-content:flex-end">
+            {% if c.in_use %}
+            <details class="usage">
+              <summary class="badge pill-pending" style="cursor:pointer;list-style:none">In use ▾</summary>
+              <div class="usage-pop">
+                <strong>Used in</strong>
+                <ul>{% for lbl, n in c.usage.items() %}<li><span>{{ lbl }}</span><strong>{{ n }}</strong></li>{% endfor %}</ul>
+              </div>
+            </details>
+            {% else %}
+            <button class="btn-sm btn-danger" form="delc-{{ c.id }}">Delete</button>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}<tr><td colspan="3" class="muted">No categories yet.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <button class="btn" style="margin-top:1rem">Save all</button>
+  </form>
+  {% for c in categories %}
+  <form method="post" id="delc-{{ c.id }}" onsubmit="return confirm('Delete {{ c.name }}?')" style="display:none">
+    <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ c.id }}">
+  </form>
+  {% endfor %}
+</div>
+<script>
+document.querySelectorAll('details.usage').forEach(function(d) {
+  d.addEventListener('toggle', function() {
+    var pop = d.querySelector('.usage-pop');
+    if (!pop) return;
+    if (d.open) {
+      var rect = d.getBoundingClientRect();
+      pop.style.position = 'fixed';
+      pop.style.top = (rect.bottom + 4) + 'px';
+      pop.style.right = (window.innerWidth - rect.right) + 'px';
+      pop.style.left = 'auto';
+    } else {
+      pop.style.position = '';
+      pop.style.top = '';
+      pop.style.right = '';
+    }
+  });
+});
+document.addEventListener('click', function(e) {
+  document.querySelectorAll('details.usage[open]').forEach(function(d) {
+    if (!d.contains(e.target)) d.removeAttribute('open');
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Create Account{% endblock %}
+{% block content_anon %}
+<div class="auth-wrap">
+  <div class="auth-card" style="max-width:460px">
+    <h1>🏅 Create Account</h1>
+    <p class="auth-sub">{{ cfg.event_name or 'Sports Meet' }}</p>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}
+    {% endwith %}
+    <form method="post">
+      <div id="housebox">
+        <div class="inline">
+          <div>
+            <label>House *</label>
+            <select name="house">
+              <option value="">Select…</option>
+              {% for h in houses %}<option value="{{ h }}" {{ 'selected' if form.house==h }}>{{ h }}</option>{% endfor %}
+            </select>
+          </div>
+          <div>
+            <label>House number *</label>
+            <input type="text" name="number" value="{{ form.number or '' }}" inputmode="numeric" pattern="\d{3}" maxlength="3" placeholder="3 digits, e.g. 123">
+            <span class="help">Unique within your house.</span>
+          </div>
+        </div>
+      </div>
+
+      <label>I am registering as *</label>
+      <select name="role" id="role" onchange="onRole()">
+        {% for r in roles %}<option value="{{ r }}" {{ 'selected' if form.role==r }}>{{ r|capitalize }}</option>{% endfor %}
+      </select>
+
+      <label>Username *</label>
+      <input type="text" name="username" value="{{ form.username or '' }}" required autocomplete="username">
+      <label>Full name *</label>
+      <input type="text" name="name" value="{{ form.name or '' }}" required>
+
+      <div id="playerbox">
+        <div class="inline">
+          <div>
+            <label>Birth year *</label>
+            <input type="number" name="birth_year" min="1900" max="{{ year }}" value="{{ form.birth_year or '' }}" placeholder="e.g. 2010">
+            <span class="help">Your age category is worked out automatically.</span>
+          </div>
+          <div>
+            <label>Gender *</label>
+            <select name="division">
+              <option value="">Select…</option>
+              <option value="Male" {{ 'selected' if form.division=='Male' }}>Male</option>
+              <option value="Female" {{ 'selected' if form.division=='Female' }}>Female</option>
+            </select>
+          </div>
+        </div>
+        <p class="help">You'll register with no team — a captain will add you to theirs.</p>
+      </div>
+
+      <div id="teambox" style="display:none">
+        <label>Team you manage *</label>
+        <select name="team">
+          <option value="">Select team…</option>
+          {% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if form.team==t.id }}>{{ t.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div id="rolepwbox" style="display:none">
+        <label>Common role password *</label>
+        <input type="password" name="role_password" autocomplete="off">
+        <span class="help">The shared password the admin gives to captains.</span>
+      </div>
+
+      <label>Email (optional)</label>
+      <input type="email" name="email" value="{{ form.email or '' }}">
+
+      <label>Security question *</label>
+      <select name="security_question">
+        <option value="">Select a question…</option>
+        {% for q in security_questions %}<option value="{{ q }}" {{ 'selected' if form.security_question==q }}>{{ q }}</option>{% endfor %}
+      </select>
+      <label>Answer *</label>
+      <input type="text" name="security_answer" autocomplete="off" placeholder="Used to recover a forgotten password">
+
+      <label>Your account password *</label>
+      <input type="password" name="password" id="pw" oninput="checkRules()" required autocomplete="new-password">
+      <ul class="pw-rules" id="rules">
+        <li data-rule="len">At least 6 characters</li>
+      </ul>
+      <button class="btn" id="save" style="width:100%;margin-top:.4rem" disabled>Create Account</button>
+    </form>
+    <p style="text-align:center;margin-top:1rem">Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+  </div>
+</div>
+<script>
+function onRole(){
+  var r=document.getElementById('role').value;
+  document.getElementById('housebox').style.display = (r==='player')?'block':'none';
+  document.getElementById('playerbox').style.display = (r==='player')?'block':'none';
+  document.getElementById('teambox').style.display = (r==='captain')?'block':'none';
+  document.getElementById('rolepwbox').style.display = (r==='captain')?'block':'none';
+}
+function checkRules(){
+  var p=document.getElementById('pw').value;
+  var t={len:p.length>=6};
+  var all=true;
+  document.querySelectorAll('#rules li').forEach(function(li){var ok=t[li.dataset.rule];li.classList.toggle('met',ok);if(!ok)all=false;});
+  document.getElementById('save').disabled=!all;
+}
+onRole();
+</script>
+{% endblock %}

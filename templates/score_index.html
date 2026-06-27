@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Score Entry{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>✍️ Result Entry</h1>
+  {% if show_all %}<a class="btn-sm btn-ghost" href="{{ url_for('score_index') }}">Show only those already held</a>
+  {% else %}<a class="btn-sm btn-ghost" href="{{ url_for('score_index', all=1) }}">Show all ({{ hidden }} upcoming hidden)</a>{% endif %}
+</div>
+<p class="muted">{% if not show_all %}Showing only sport-age-categories scheduled on or before today, so you're not overwhelmed by what's still to come.{% else %}Showing every sport-age-category.{% endif %}</p>
+
+{# Cascade filters: Gender -> Age -> Sport Category -> Sport #}
+<form class="card toolbar" method="get" id="scFilter">
+  {% if show_all %}<input type="hidden" name="all" value="1">{% endif %}
+  <div><label>Gender</label><select name="gender" id="fGender" onchange="this.form.submit()">
+    <option value="">All</option>
+    {% for d in divisions %}<option value="{{ d }}" {{ 'selected' if filters.gender==d }}>{{ d }}</option>{% endfor %}
+  </select></div>
+  <div><label>Age Category</label><select name="age" id="fAge" onchange="this.form.submit()">
+    <option value="">All ages</option>
+    {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if filters.age==c.id }}>{{ c.name }}</option>{% endfor %}
+  </select></div>
+  <div><label>Sport Category</label><select name="category" id="fCat" onchange="this.form.submit()">
+    <option value="">All categories</option>
+    {% for c in sport_categories %}<option value="{{ c.id }}" {{ 'selected' if filters.category==c.id }}>{{ c.name }}</option>{% endfor %}
+  </select></div>
+  <div><label>Sport</label><select name="sport" id="fSport" onchange="this.form.submit()">
+    <option value="">All sports</option>
+    {% for s in sports %}<option value="{{ s.id }}" data-cat="{{ s.category_id or '' }}" {{ 'selected' if filters.sport==s.id }}>{{ s.name }}</option>{% endfor %}
+  </select></div>
+  <div><label>&nbsp;</label><a class="btn btn-ghost" href="{{ url_for('score_index', all=1 if show_all else None) }}">Clear</a></div>
+</form>
+
+{% macro tbl(rows, empty) %}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Date</th><th>Sport · Age · Gender</th><th>Scoring</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for e in rows %}
+    <tr>
+      <td data-label="Date">{{ e.date|dmy }}</td>
+      <td data-label="Sport · Age · Gender">{{ sac_label(e) }}</td>
+      <td data-label="Scoring">{{ e.scoring_mode }}</td>
+      <td data-label="Status"><span class="badge pill-{{ e.approval_status }}">{{ {'draft':'To score','pending':'Pending approval','disputed':'Disputed','approved':'Approved'}[e.approval_status] }}</span></td>
+      <td data-label="" class="right"><a class="btn-sm" href="{{ url_for('score_event', sid=e.id) }}">Open →</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="muted">{{ empty }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endmacro %}
+
+<div class="card">
+  <h2>🟦 Needs scoring</h2>
+  {{ tbl(buckets.todo, "Nothing to score right now.") }}
+</div>
+<div class="card">
+  <h2>🟡 Awaiting approval</h2>
+  {{ tbl(buckets.pending, "Nothing waiting on approval.") }}
+</div>
+<div class="card">
+  <h2>✅ Approved</h2>
+  {{ tbl(buckets.done, "No approved results yet.") }}
+</div>
+
+<script>
+// Cascade Gender -> Age -> Sport Category -> Sport using the available combos.
+(function(){
+  var COMBOS = {{ combos|tojson }};
+  var g=document.getElementById('fGender'), a=document.getElementById('fAge'),
+      c=document.getElementById('fCat'), s=document.getElementById('fSport');
+  if(!g) return;
+  function avail(f){
+    return COMBOS.filter(function(x){
+      return (!f.gender||x.gender===f.gender)&&(!f.age||x.age===f.age)
+          &&(!f.cat||x.cat===f.cat)&&(!f.sport||x.sport===f.sport); });
+  }
+  function setOf(rows,key){ var z=new Set(); rows.forEach(function(r){ if(r[key]) z.add(r[key]); }); return z; }
+  function apply(sel,valid){
+    if(!sel) return;
+    Array.prototype.forEach.call(sel.options,function(o){ if(o.value) o.hidden=!valid.has(o.value); });
+    if(sel.selectedOptions.length && sel.selectedOptions[0].hidden){ sel.value=''; }
+  }
+  function cascade(){
+    var gv=g.value, av=a.value;
+    apply(c, setOf(avail({gender:gv,age:av}),'cat'));
+    var cv=(c&&c.value)||'';
+    apply(s, setOf(avail({gender:gv,age:av,cat:cv}),'sport'));
+  }
+  [g,a,c,s].forEach(function(el){ if(el) el.addEventListener('change',cascade); });
+  cascade();
+})();
+</script>
+{% endblock %}

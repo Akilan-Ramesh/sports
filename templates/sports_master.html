@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Sports{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>🏆 Sports</h1>
+  <a class="btn" href="{{ url_for('sport_new') }}">+ ADD Sport</a>
+</div>
+{% if program %}<p class="program-context">📋 <strong>{{ program.name }}</strong></p>{% endif %}
+<p class="muted">The catalogue of sports we plan to organise. Set which age groups &amp; genders each sport runs for — with scoring, schedule and results — under <a href="{{ url_for('sac_list') }}">Sport Age Categories</a>.</p>
+
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Sport Category</th><th>Sport Name</th><th>Sport-Age-Cats</th><th class="right">Actions</th></tr></thead>
+  <tbody>
+    {% for s in sports %}
+    <tr {{ 'style=opacity:.55' if s.archived }}>
+      <td><span class="badge">{{ s.category_name }}</span></td>
+      <td>{{ s.name }}{% if s.archived %} <span class="badge pill-disputed">archived</span>{% endif %}</td>
+      <td><span class="badge">{{ s.n_sac }}</span></td>
+      <td class="right actions" style="justify-content:flex-end">
+        <a class="btn-sm btn-ghost" href="{{ url_for('sport_edit', sid=s.id) }}">Edit</a>
+        {% if s.archived %}
+        <form method="post" action="{{ url_for('sport_archive', sid=s.id) }}">
+          <button class="btn-sm btn-ghost">Unarchive</button>
+        </form>
+        {% else %}
+        {% if s.in_use %}
+        <details class="usage">
+          <summary class="badge pill-pending" style="cursor:pointer;list-style:none">In use ▾</summary>
+          <div class="usage-pop">
+            <strong>Used in</strong>
+            <ul>{% for tbl, n in s.usage.items() %}<li><span>{{ tbl }}</span><strong>{{ n }}</strong></li>{% endfor %}</ul>
+          </div>
+        </details>
+        {% else %}
+        <form method="post" action="{{ url_for('sport_delete', sid=s.id) }}" onsubmit="return confirm('Delete {{ s.name }}?')">
+          <button class="btn-sm btn-danger">Delete</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('sport_archive', sid=s.id) }}"
+              {% if s.active_children %}onsubmit="return confirm('Archive {{ s.name }} and its {{ s.active_children }} Sport Event row(s)?')"{% endif %}>
+          <button class="btn-sm btn-ghost">Archive</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="muted">No sports yet. Click “ADD Sport”.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<script>
+// Reposition usage popups to fixed coords so they escape table overflow clipping.
+document.querySelectorAll('details.usage').forEach(function(d) {
+  d.addEventListener('toggle', function() {
+    var pop = d.querySelector('.usage-pop');
+    if (!pop) return;
+    if (d.open) {
+      var rect = d.getBoundingClientRect();
+      pop.style.position = 'fixed';
+      pop.style.top = (rect.bottom + 4) + 'px';
+      pop.style.right = (window.innerWidth - rect.right) + 'px';
+      pop.style.left = 'auto';
+    } else {
+      pop.style.position = '';
+      pop.style.top = '';
+      pop.style.right = '';
+    }
+  });
+});
+document.addEventListener('click', function(e) {
+  document.querySelectorAll('details.usage[open]').forEach(function(d) {
+    if (!d.contains(e.target)) d.removeAttribute('open');
+  });
+});
+</script>
+{% endblock %}

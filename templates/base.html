@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>{% block title %}Sports Meet{% endblock %} · {{ cfg.event_name or 'Sports Meet' }}</title>
+  <script>
+    // Apply saved theme before paint to avoid a flash of the wrong theme.
+    window.__UI__ = "{{ ui }}";
+    (function(){try{var t=localStorage.getItem('theme');
+      if(!t){t = (window.__UI__==='pro') ? 'dark'
+              : (window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');}
+      document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% if ui == 'pro' %}<link rel="stylesheet" href="{{ url_for('static', filename='style-pro.css') }}">{% endif %}
+</head>
+<body class="{{ 'ui-pro' if ui == 'pro' }}">
+{% if ui == 'pro' %}
+<div class="aurora" aria-hidden="true"><span></span><span></span><span></span></div>
+<div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+{% endif %}
+{% if user %}
+<header class="topbar">
+  <button class="nav-toggle" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <a class="brand" href="{{ url_for('dashboard') }}">🏅 {{ cfg.event_name or 'Sports Meet' }}</a>
+  {% if program %}
+  <a class="program-chip" href="{{ url_for('select_program') }}" title="Switch program">{{ program.name }} ▾</a>
+  {% endif %}
+  <div class="userbox">
+    {% if user.roles|length > 1 %}
+    <div class="role-switch">
+      <button type="button" class="role-chip role-{{ user.acting }}" onclick="this.parentNode.classList.toggle('open')">{{ user.acting }} ▾</button>
+      <div class="role-menu">
+        <div class="role-menu-head">Switch role</div>
+        {% for r in user.roles %}
+        <a href="{{ url_for('switch_role', role=r) }}" class="{{ 'active' if r==user.acting }}">{{ r|capitalize }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <span class="role-chip role-{{ user.acting }}">{{ user.acting }}</span>
+    {% endif %}
+    <span class="uname">{{ user.name }}</span>
+    <button type="button" class="icon-btn" id="themeToggle" aria-label="Toggle theme" title="Toggle light / dark"></button>
+    <a class="btn-sm" href="{{ url_for('logout') }}">Logout</a>
+  </div>
+</header>
+{%- set _ep = request.endpoint %}
+{%- set act = user.acting %}
+<nav class="mobile-strip">
+  <a href="{{ url_for('dashboard') }}" class="{{ 'active' if _ep == 'dashboard' }}">🏠 Home</a>
+  <a href="{{ url_for('whats_new') }}" class="{{ 'active' if _ep == 'whats_new' }}">🆕 What's New</a>
+  <a href="{{ url_for('sports_status') }}" class="{{ 'active' if _ep == 'sports_status' }}">📅 Sports</a>
+  <a href="{{ url_for('about') }}" class="{{ 'active' if _ep == 'about' }}">ℹ️ About</a>
+  <a href="{{ url_for('results_list') }}" class="{{ 'active' if _ep in ['results_list','result_detail'] }}">📊 Results</a>
+  {% if act in ['player','captain','admin'] %}
+  <a href="{{ url_for('signup') }}" class="{{ 'active' if _ep == 'signup' }}">📝 Sign-up</a>
+  {% endif %}
+  {% if act == 'player' %}
+  <a href="{{ url_for('profile_edit') }}" class="{{ 'active' if _ep == 'profile_edit' }}">✏️ Profile</a>
+  {% endif %}
+  {% if act in ['captain','admin'] %}
+  <a href="{{ url_for('participants_list') }}" class="{{ 'active' if _ep in ['participants_list','participant_edit','participant_new'] }}">👥 Participants</a>
+  <a href="{{ url_for('volunteers') }}" class="{{ 'active' if _ep == 'volunteers' }}">🙋 Volunteers</a>
+  <a href="{{ url_for('score_index') }}" class="{{ 'active' if _ep in ['score_index','score_event'] }}">✍️ Result Entry</a>
+  <a href="{{ url_for('approvals') }}" class="{{ 'active' if _ep == 'approvals' }}">✅ Approvals</a>
+  <a href="{{ url_for('change_password') }}" class="{{ 'active' if _ep == 'change_password' }}">🔑 Account</a>
+  {% endif %}
+  {% if act == 'admin' %}
+  <a href="{{ url_for('admin_home') }}" class="{{ 'active' if _ep == 'admin_home' }}">🛠 Overview</a>
+  <a href="{{ url_for('admin_programs') }}" class="{{ 'active' if _ep in ['admin_programs','admin_program_form','admin_program_set_status'] }}">📋 Programs</a>
+  <a href="{{ url_for('admin_teams') }}" class="{{ 'active' if _ep == 'admin_teams' }}">🚩 Teams</a>
+  <a href="{{ url_for('sac_list') }}" class="{{ 'active' if _ep in ['sac_list','sac_edit','sac_new'] }}">🎯 Events</a>
+  <a href="{{ url_for('users_list') }}" class="{{ 'active' if _ep in ['users_list','user_form'] }}">👤 Users</a>
+  <a href="{{ url_for('admin_announcements') }}" class="{{ 'active' if _ep == 'admin_announcements' }}">📢 Announcements</a>
+  <a href="{{ url_for('admin_settings') }}" class="{{ 'active' if _ep == 'admin_settings' }}">⚙️ Settings</a>
+  {% endif %}
+  <a href="{{ url_for('notifications') }}" class="{{ 'active' if _ep == 'notifications' }}">
+    🔔 Alerts{% if unread %}<span class="mns-badge">{{ unread }}</span>{% endif %}
+  </a>
+</nav>
+<div class="layout">
+  <nav class="sidebar">
+    <a href="{{ url_for('dashboard') }}">🏠 Dashboard</a>
+    <a href="{{ url_for('whats_new') }}">🆕 What's New</a>
+    <a href="{{ url_for('sports_status') }}">📅 Sports Calendar</a>
+    <a href="{{ url_for('about') }}">ℹ️ About</a>
+    <a href="{{ url_for('results_list') }}">📊 Results</a>
+    {% if act in ['player','captain','admin'] %}
+    <a href="{{ url_for('signup') }}">📝 Sports Sign-up</a>
+    {% endif %}
+    {% if act == 'player' %}
+    <a href="{{ url_for('profile_edit') }}">✏️ Edit Profile</a>
+    {% endif %}
+    {% if act == 'captain' %}
+    <a href="{{ url_for('participants_list') }}">👥 Participants</a>
+    {% endif %}
+    {% if act in ['captain','admin'] %}
+    <a href="{{ url_for('volunteers') }}">🙋 Volunteers</a>
+    <a href="{{ url_for('score_index') }}">✍️ Result Entry</a>
+    <a href="{{ url_for('approvals') }}">✅ Approvals</a>
+    <a href="{{ url_for('change_password') }}">🔑 Password &amp; Security</a>
+    {% endif %}
+    {% if act == 'admin' %}
+    <div class="nav-sep">Maintenance</div>
+    <a href="{{ url_for('admin_home') }}">🛠 Overview</a>
+    <a href="{{ url_for('admin_programs') }}">📋 Programs</a>
+    <a href="{{ url_for('admin_teams') }}">🚩 Teams</a>
+    <a href="{{ url_for('admin_sport_categories') }}">🗂 Sport Categories</a>
+    <a href="{{ url_for('admin_age_categories') }}">🎂 Age Categories</a>
+    <a href="{{ url_for('sports_master') }}">🏆 Sports</a>
+    <a href="{{ url_for('sac_list') }}">🎯 Sports Event</a>
+    <a href="{{ url_for('participants_list') }}">👥 Participants</a>
+    <a href="{{ url_for('team_selection') }}">🧮 Team Selection</a>
+    <a href="{{ url_for('users_list') }}">👤 Users &amp; Roles</a>
+    <a href="{{ url_for('admin_announcements') }}">📢 Announcements</a>
+    <a href="{{ url_for('admin_settings') }}">⚙️ Settings</a>
+    <a href="{{ url_for('admin_data') }}">💾 Import / Backup</a>
+    <a href="{{ url_for('admin_reset') }}">♻️ Reset / Sample data</a>
+    {% endif %}
+    <a href="{{ url_for('notifications') }}">🔔 Notifications{% if unread %} <span class="badge badge-alert">{{ unread }}</span>{% endif %}</a>
+  </nav>
+  <main class="content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% else %}
+  <button type="button" class="icon-btn" id="themeToggle" aria-label="Toggle theme" title="Toggle light / dark"
+          style="position:fixed;top:1rem;right:1rem;z-index:50;background:rgba(255,255,255,.2)"></button>
+  {% block content_anon %}{% endblock %}
+{% endif %}
+{% block scripts %}{% endblock %}
+<script>
+// Auto-inject the CSRF token into every POST form so we don't edit each template.
+(function(){
+  var m=document.querySelector('meta[name="csrf-token"]'); var t=m?m.content:'';
+  if(!t) return;
+  document.querySelectorAll('form').forEach(function(f){
+    if((f.getAttribute('method')||'get').toLowerCase()!=='post') return;
+    if(f.querySelector('input[name="_csrf"]')) return;
+    var i=document.createElement('input'); i.type='hidden'; i.name='_csrf'; i.value=t;
+    f.appendChild(i);
+  });
+})();
+</script>
+<script src="{{ url_for('static', filename='app.js') }}" defer></script>
+{% if ui == 'pro' %}<script src="{{ url_for('static', filename='app-pro.js') }}" defer></script>{% endif %}
+</body>
+</html>

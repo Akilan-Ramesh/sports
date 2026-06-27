@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}What's New{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>🆕 What's New</h1>
+</div>
+<div class="card" style="max-width:720px">
+  {% for item in items %}
+  <div style="padding:.75rem 0;{% if not loop.last %}border-bottom:1px solid var(--line){% endif %}">
+    <div style="display:flex;align-items:baseline;gap:.75rem;flex-wrap:wrap">
+      <strong style="font-size:1rem">{{ item.title }}</strong>
+      <span class="muted" style="font-size:.8rem">{{ item.date }}</span>
+    </div>
+    <p style="margin:.3rem 0 0;color:var(--ink-soft);font-size:.92rem">{{ item.body }}</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

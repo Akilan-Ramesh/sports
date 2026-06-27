@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Select Program{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>📋 Select a Program</h1>
+  <p class="muted">Choose the sports program you want to manage or view.</p>
+</div>
+
+{% if programs %}
+<div class="card-grid">
+  {% for p in programs %}
+  <div class="program-card {{ 'program-card--active' if p.id == current_pid }}">
+    <div class="program-card__header">
+      {% if p.status == 'archived' %}<span class="badge pill-disputed" style="font-size:.7rem">Archived</span>{% endif %}
+      <h2>{{ p.name }}</h2>
+      {% if p.description %}<p class="muted">{{ p.description }}</p>{% endif %}
+    </div>
+    <div class="program-card__meta">
+      {% if p.start_date or p.end_date %}
+      <span class="muted">📅 {{ p.start_date or '?' }} → {{ p.end_date or 'ongoing' }}</span>
+      {% endif %}
+      <span class="muted">{{ p.n_sports }} sports · {{ p.n_teams }} teams</span>
+    </div>
+    <div class="program-card__foot">
+      {% if p.id == current_pid %}
+      <span class="badge pill-approved">Currently selected</span>
+      {% else %}
+      <form method="post">
+        <input type="hidden" name="program_id" value="{{ p.id }}">
+        <button class="btn {{ 'btn-primary' if p.status == 'active' else 'btn-secondary' }}">Select →</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <p class="muted">No programs available. Contact your administrator.</p>
+</div>
+{% endif %}
+{% endblock %}

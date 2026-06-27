@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Manage “{{ cat.name }}”{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>🗂 Delete “{{ cat.name }}”</h1>
+  <a class="btn btn-ghost" href="{{ url_for('admin_sport_categories') }}">← Back</a>
+</div>
+
+<div class="flash flash-warning">
+  <strong>In use.</strong> This category still has {{ sports|length }} sport(s).
+  Move, archive or delete them below, then delete the empty category.
+</div>
+
+<form method="post" class="card">
+  <h2>Sports in this category</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr>
+      <th><input type="checkbox" onclick="document.querySelectorAll('input[name=child]').forEach(c=>c.checked=this.checked)"></th>
+      <th>Sport</th><th>Events</th><th>Status</th>
+    </tr></thead>
+    <tbody>
+      {% for s in sports %}
+      <tr>
+        <td><input type="checkbox" name="child" value="{{ s.id }}" checked></td>
+        <td>{{ s.name }}</td>
+        <td><span class="badge">{{ s.n_sac }}</span></td>
+        <td>{% if s.archived %}<span class="badge pill-disputed">archived</span>{% elif s.n_sac %}<span class="badge pill-pending">in use</span>{% else %}<span class="badge pill-approved">free</span>{% endif %}</td>
+      </tr>
+      {% else %}<tr><td colspan="4" class="muted">No sports left — you can delete the category below.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  {% if sports %}
+  <h3 style="margin-top:1rem">Apply to the ticked sports</h3>
+  <div class="actions" style="flex-wrap:wrap;gap:.6rem;align-items:end">
+    <div>
+      <label>Move to category</label>
+      <select name="target_cat">
+        <option value="">— uncategorised —</option>
+        {% for c in other_cats %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <button class="btn-sm" name="op" value="move">Move ticked</button>
+    <button class="btn-sm btn-ghost" name="op" value="archive">Archive ticked</button>
+    <button class="btn-sm btn-danger" name="op" value="delete"
+            onclick="return confirm('Delete the ticked sports? Any with events will be archived instead.')">Delete ticked</button>
+  </div>
+  {% endif %}
+</form>
+
+<form method="post" class="card" onsubmit="return confirm('Delete the category “{{ cat.name }}” for good?')">
+  <h2>Delete the category</h2>
+  {% if sports %}
+  <p class="muted">Resolve all the sports above first — the category can only be deleted when empty.</p>
+  <button class="btn btn-danger" name="op" value="delete_category" disabled>Delete “{{ cat.name }}”</button>
+  {% else %}
+  <p class="muted">No sports remain in this category.</p>
+  <button class="btn btn-danger" name="op" value="delete_category">Delete “{{ cat.name }}”</button>
+  {% endif %}
+</form>
+{% endblock %}

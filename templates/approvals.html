@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Approvals{% endblock %}
+{% block content %}
+<h1>✅ Approvals</h1>
+
+{# ---- Captain: results awaiting my agreement ---- #}
+{% if user.is_captain %}
+<div class="card">
+  <h2>Awaiting your approval</h2>
+  <p class="muted">Another captain entered these results. Agree if they look right; disagree to flag them for the admin.</p>
+  {% if my_votes %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Sport · Age · Gender</th><th>Date</th><th>Decision</th></tr></thead>
+    <tbody>
+    {% for v in my_votes %}
+      <tr>
+        <td data-label="Event">{{ v.event_name }} · {{ v.age_category or 'All' }} · {{ v.gender or 'Mixed' }}</td><td data-label="Date">{{ v.date|dmy }}</td>
+        <td data-label="" class="actions">
+          <form method="post" action="{{ url_for('approval_vote', sid=v.sac_id) }}">
+            <input type="hidden" name="decision" value="agree"><button class="btn-sm btn-ok">Agree</button>
+          </form>
+          <form method="post" action="{{ url_for('approval_vote', sid=v.sac_id) }}">
+            <input type="hidden" name="decision" value="disagree"><button class="btn-sm btn-danger">Disagree</button>
+          </form>
+          <a class="btn-sm btn-ghost" href="{{ url_for('result_detail', sid=v.sac_id) }}">View results</a>
+        </td>
+      </tr>
+    {% else %}<tr><td colspan="3" class="muted">Nothing waiting on you.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">Nothing waiting on you right now.</p>{% endif %}
+</div>
+{% endif %}
+
+{# ---- Admin: roster requests + score approvals ---- #}
+{% if user.is_admin %}
+<div class="card" style="border-color:#fde68a">
+  <h2>⏳ Roster requests <span class="muted">({{ roster|length }})</span></h2>
+  <p class="muted">Captains asked to add these players to their team.</p>
+  {% for p in roster %}
+  <div style="border-bottom:1px solid var(--line);padding:.5rem 0" class="actions">
+    <strong>{{ p.name }}</strong> → {{ p.pending_team_name }}
+    <span class="muted">· {{ p.division }} · {{ p.category or '—' }}{% if p.team %} · move from {{ p.team_name }}{% endif %}</span>
+    <span style="margin-left:auto"></span>
+    <form method="post" action="{{ url_for('roster_decision', pid=p.id, action='approve') }}"><button class="btn-sm btn-ok">Approve</button></form>
+    <form method="post" action="{{ url_for('roster_decision', pid=p.id, action='reject') }}"><button class="btn-sm btn-danger">Reject</button></form>
+  </div>
+  {% else %}<p class="muted">No roster requests.</p>{% endfor %}
+</div>
+
+<div class="card" style="border-color:#fecaca">
+  <h2 style="color:var(--danger)">Disputed — needs your decision</h2>
+  {% for e in disputed %}
+  <div style="border-bottom:1px solid var(--line);padding:.6rem 0">
+    <strong>{{ sac_label(e) }}</strong> · {{ e.date|dmy }}
+    <div class="muted" style="font-size:.85rem;margin:.3rem 0">
+      {% for v in e.votes %}{{ v.cap_name }} ({{ v.team }}): <strong>{{ v.decision }}</strong>{{ ' · ' if not loop.last }}{% endfor %}
+    </div>
+    <div class="actions">
+      <a class="btn-sm btn-ghost" href="{{ url_for('result_detail', sid=e.id) }}">View results</a>
+      <form method="post" action="{{ url_for('approval_admin', sid=e.id) }}"><input type="hidden" name="action" value="approve"><button class="btn-sm btn-ok">Approve (override)</button></form>
+      <form method="post" action="{{ url_for('approval_admin', sid=e.id) }}"><input type="hidden" name="action" value="withhold"><button class="btn-sm btn-danger">Withhold &amp; reopen</button></form>
+    </div>
+  </div>
+  {% else %}<p class="muted">No disputes.</p>{% endfor %}
+</div>
+
+<div class="card">
+  <h2>Pending captain approval</h2>
+  {% for e in pending %}
+  <div style="border-bottom:1px solid var(--line);padding:.6rem 0">
+    <strong>{{ sac_label(e) }}</strong> · {{ e.date|dmy }}
+    <div class="muted" style="font-size:.85rem;margin:.3rem 0">
+      {% for v in e.votes %}{{ v.cap_name }} ({{ v.team }}): <strong>{{ v.decision }}</strong>{{ ' · ' if not loop.last }}{% endfor %}
+    </div>
+    <div class="actions">
+      <a class="btn-sm btn-ghost" href="{{ url_for('result_detail', sid=e.id) }}">View results</a>
+      <form method="post" action="{{ url_for('approval_admin', sid=e.id) }}"><input type="hidden" name="action" value="approve"><button class="btn-sm btn-ok">Approve now</button></form>
+      <form method="post" action="{{ url_for('approval_admin', sid=e.id) }}"><input type="hidden" name="action" value="withhold"><button class="btn-sm btn-ghost">Withhold</button></form>
+    </div>
+  </div>
+  {% else %}<p class="muted">Nothing pending.</p>{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

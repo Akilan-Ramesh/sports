@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Sports Calendar{% endblock %}
+{% block content %}
+<h1>📅 Sports Calendar</h1>
+
+{% if has_mine or has_team %}
+<div class="tabs">
+  {% if has_mine %}<a class="tab {{ 'active' if view == 'mine' }}" href="{{ url_for('sports_status', view='mine') }}">My events</a>{% endif %}
+  {% if has_team %}<a class="tab {{ 'active' if view == 'team' }}" href="{{ url_for('sports_status', view='team') }}">Team events</a>{% endif %}
+  <a class="tab {{ 'active' if view == 'all' }}" href="{{ url_for('sports_status', view='all') }}">All events</a>
+</div>
+{% endif %}
+
+{% if view == 'mine' %}
+{# ===================== My Events: two columns ===================== #}
+{% macro ev_row(e) %}
+  <a class="mine-row" href="{% if e.finalised %}{{ url_for('result_detail', sid=e.id) }}{% else %}{{ url_for('callsheet', sid=e.id) }}{% endif %}">
+    <span class="mine-date">{% if e.date %}{{ e.date|dmy }}{% if e.slot %} · {{ e.slot }}{% endif %}{% else %}date TBD{% endif %}</span>
+    <span class="mine-name">{{ e.sport_name }}</span>
+    <span class="mine-meta">{{ e.age_category or 'All' }} · {{ e.gender or 'Mixed' }}</span>
+  </a>
+{% endmacro %}
+<div class="mine-cols">
+  <div class="card">
+    <h2>✅ Signed up <span class="muted">({{ signed|length }})</span></h2>
+    {% for e in signed %}{{ ev_row(e) }}
+    {% else %}<p class="muted">You haven't signed up for anything yet.</p>{% endfor %}
+  </div>
+  <div class="card">
+    <h2>➕ Can sign up <span class="muted">({{ can_sign|length }})</span></h2>
+    {% for e in can_sign %}{{ ev_row(e) }}
+    {% else %}<p class="muted">Nothing open for you to join right now.</p>{% endfor %}
+    {% if can_sign %}<a class="btn btn-sm" style="margin-top:.6rem" href="{{ url_for('signup') }}">Go to Sign-up →</a>{% endif %}
+  </div>
+</div>
+
+{% elif view == 'team' %}
+{# ===================== Team events: your team's schedule ===================== #}
+<p class="muted">Events your team ({{ team_label }}) is taking part in — come support them.</p>
+<form class="card toolbar" method="get">
+  <input type="hidden" name="view" value="team">
+  <div><label>Age Category</label><select name="age" onchange="this.form.submit()">
+    <option value="">All ages</option>
+    {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if filters.age==c.id }}>{{ c.name }}</option>{% endfor %}
+  </select></div>
+  <div><label>Gender</label><select name="gender" onchange="this.form.submit()">
+    <option value="">All</option>
+    {% for d in divisions %}<option value="{{ d }}" {{ 'selected' if filters.gender==d }}>{{ d }}</option>{% endfor %}
+  </select></div>
+  <div><label>Scheduling</label><select name="sched" onchange="this.form.submit()">
+    <option value="" {{ 'selected' if not filters.sched }}>All</option>
+    <option value="scheduled" {{ 'selected' if filters.sched=='scheduled' }}>Scheduled</option>
+    <option value="unscheduled" {{ 'selected' if filters.sched=='unscheduled' }}>Not scheduled</option>
+  </select></div>
+  <div><label>&nbsp;</label><a class="btn btn-ghost" href="{{ url_for('sports_status', view='team') }}">Clear filters</a></div>
+</form>
+<div class="card">
+  {% for e in team_rows %}
+  <a class="mine-row" href="{% if e.finalised %}{{ url_for('result_detail', sid=e.id) }}{% else %}{{ url_for('callsheet', sid=e.id) }}{% endif %}">
+    <span class="mine-date">{% if e.date %}{{ e.date|dmy }}{% if e.slot %} · {{ e.slot }}{% endif %}{% else %}date TBD{% endif %}</span>
+    <span class="mine-name">{{ e.sport_name }} <span class="muted">· {{ e.age_category or 'All' }} · {{ e.gender or 'Mixed' }}</span></span>
+    <span class="mine-meta">{{ e.members|join(', ') }}</span>
+  </a>
+  {% else %}<p class="muted">No teammates are signed up for anything yet.</p>{% endfor %}
+</div>
+
+{% else %}
+{# ===================== All events: filters + calendar ===================== #}
+<form class="card toolbar" method="get">
+  <input type="hidden" name="view" value="all">
+  <div><label>Age Category</label><select name="age" onchange="this.form.submit()">
+    <option value="">All ages</option>
+    {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if filters.age==c.id }}>{{ c.name }}</option>{% endfor %}
+  </select></div>
+  <div><label>Gender</label><select name="gender" onchange="this.form.submit()">
+    <option value="">All</option>
+    {% for d in divisions %}<option value="{{ d }}" {{ 'selected' if filters.gender==d }}>{{ d }}</option>{% endfor %}
+  </select></div>
+  <div><label>Scheduling</label><select name="sched" onchange="this.form.submit()">
+    <option value="" {{ 'selected' if not filters.sched }}>All</option>
+    <option value="scheduled" {{ 'selected' if filters.sched=='scheduled' }}>Scheduled</option>
+    <option value="unscheduled" {{ 'selected' if filters.sched=='unscheduled' }}>Not scheduled</option>
+  </select></div>
+  {% if teams_list %}
+  <div><label>Team</label><select name="team" onchange="this.form.submit()">
+    <option value="">All teams</option>
+    {% for t in teams_list %}<option value="{{ t.id }}" {{ 'selected' if filters.team==t.id }}>{{ t.name }}</option>{% endfor %}
+  </select></div>
+  {% endif %}
+  <div><label>&nbsp;</label><a class="btn btn-ghost" href="{{ url_for('sports_status', view='all') }}">Clear filters</a></div>
+</form>
+
+{% if filters.sched != 'unscheduled' %}<p class="muted">Week of {{ start|dmy }} – {{ end|dmy }} — what's happening each day.</p>{% endif %}
+
+{% if show_key %}
+<div class="legend">
+  <span><i class="sw sw-elig"></i> You can play (your age &amp; gender)</span>
+  <span><i class="sw sw-reg"></i> You're signed up</span>
+</div>
+{% endif %}
+
+{# Unscheduled (not-yet-dated) events matching the current filter #}
+{% if unscheduled %}
+<div class="week-cal" style="margin-bottom:.7rem">
+  <div class="day-row">
+    <div class="day-head"><div class="dow">No date</div><div class="dnum">📌</div></div>
+    <div class="day-events">
+    {% for e in unscheduled %}
+    {% set sm = STATUS_META.get(e.status, ('New','pill-draft')) %}
+    <a class="day-event {{ e.viewer }}" href="{% if e.finalised %}{{ url_for('result_detail', sid=e.id) }}{% else %}{{ url_for('callsheet', sid=e.id) }}{% endif %}">
+      <div class="de-top"><strong>TBD</strong> <span class="badge {{ sm[1] }}">{{ sm[0] }}</span></div>
+      <div class="de-name">{{ e.sport_name }}</div>
+      <div class="de-meta">{{ e.age_category or 'All' }} · {{ e.gender or 'Mixed' }}</div>
+    </a>
+    {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if filters.sched != 'unscheduled' %}
+<div class="page-head" style="margin-bottom:.4rem">
+  <span class="muted">{% if not is_current %}<a class="btn-sm btn-ghost" href="{{ url_for('sports_status', view='all') }}">This week</a>{% endif %}</span>
+  <div class="actions">
+    <a class="btn-sm btn-ghost" href="{{ url_for('sports_status', view='all', week=prev_week, age=filters.age, gender=filters.gender, sched=filters.sched, team=filters.team) }}">◀ Prev</a>
+    <a class="btn-sm btn-ghost" href="{{ url_for('sports_status', view='all', week=next_week, age=filters.age, gender=filters.gender, sched=filters.sched, team=filters.team) }}">Next ▶</a>
+  </div>
+</div>
+
+<div class="week-cal">
+  {% for d in cal %}
+  <div class="day-row {{ 'is-today' if d.is_today }}">
+    <div class="day-head"><div class="dow">{{ d.label }}</div><div class="dnum">{{ d.day }}</div></div>
+    <div class="day-events">
+    {% for e in d.events %}
+    {% set sm = STATUS_META.get(e.status, ('New','pill-draft')) %}
+    <a class="day-event {{ e.viewer }}" href="{% if e.finalised %}{{ url_for('result_detail', sid=e.id) }}{% else %}{{ url_for('callsheet', sid=e.id) }}{% endif %}">
+      <div class="de-top"><strong>{{ e.slot or '—' }}</strong> <span class="badge {{ sm[1] }}">{{ sm[0] }}</span></div>
+      <div class="de-name">{{ e.sport_name }}</div>
+      <div class="de-meta">{{ e.age_category or 'All' }} · {{ e.gender or 'Mixed' }}{% if e.location %} · {{ e.location }}{% endif %}</div>
+    </a>
+    {% else %}
+    <div class="day-empty">No events</div>
+    {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}{# week grid #}
+{% endif %}{# view != mine #}
+{% endblock %}

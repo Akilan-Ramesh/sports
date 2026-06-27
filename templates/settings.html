@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<h1>⚙️ Settings</h1>
+<form method="post">
+  <div class="card">
+    <h2>General</h2>
+    <label>Event name</label>
+    <input type="text" name="event_name" value="{{ cfg.event_name }}">
+  </div>
+
+  <div class="card">
+    <h2>Default points</h2>
+    <p class="muted">Fallback points for sports that don't set their own. Each sport can override this on its own page.</p>
+    <label>Points per place</label>
+    <input type="text" name="default_points" value="{{ default_points }}" placeholder="5,3,1">
+    <label class="check" style="margin-top:.8rem"><input type="checkbox" name="count_in_progress" {{ 'checked' if cfg.count_in_progress }}> Count in-progress (non-finalised) events when computing scores</label>
+  </div>
+
+  <div class="card">
+    <h2>Common Role Passwords</h2>
+    <p class="muted">Shared passwords people must enter to self-register as captain. Leave blank to keep the current one.</p>
+    <div class="inline">
+      <div><label>Captain role password</label><input type="password" name="role_pw_captain" placeholder="(unchanged)" autocomplete="off"></div>
+    </div>
+    <span class="help">At least 6 characters.</span>
+  </div>
+
+  <div class="card">
+    <h2>Email (optional)</h2>
+    <label>Sender address (SMTP configured separately, server-side)</label>
+    <input type="email" name="sender_email" value="{{ cfg.sender_email or '' }}" placeholder="meet@example.com">
+  </div>
+
+  <button class="btn">Save Settings</button>
+</form>
+{% endblock %}

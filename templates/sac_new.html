@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Add Sports Event{% endblock %}
+{% block content %}
+<h1>Add Sports Event</h1>
+<p class="muted">Pick the sport, age category and gender. Set scoring (Edit) and date/time/location (Schedule) afterwards.</p>
+<form method="post" class="card" style="max-width:560px">
+  <label>Sport *</label>
+  <select name="sport_id" required>
+    <option value="">Select…</option>
+    {% for s in sports %}<option value="{{ s.id }}">{{ s.name }} ({{ s.category_name }})</option>{% endfor %}
+  </select>
+
+  <div class="inline">
+    <div><label>Age category</label><select name="age_category">
+      <option value="">All ages</option>
+      {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+    </select></div>
+    <div><label>Gender</label><select name="gender">
+      <option value="">Mixed</option>
+      {% for d in divisions %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+    </select></div>
+    <div><label>Format</label><select name="event_format">
+      {% for f in event_formats %}<option value="{{ f }}">{{ format_labels[f] }}</option>{% endfor %}
+    </select></div>
+  </div>
+  <span class="help">Individual = one person per result. Doubles / Team = scored once per team (the team gets the points); default points 10 / 5.</span>
+
+  <div class="actions" style="margin-top:1rem">
+    <button class="btn">+ Add Sports Event</button>
+    <a class="btn btn-ghost" href="{{ url_for('sac_list') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

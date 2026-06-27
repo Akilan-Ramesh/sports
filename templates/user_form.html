@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% from "_audit.html" import audit_note %}
+{% block title %}{{ 'New' if new else 'Edit' }} Account{% endblock %}
+{% block content %}
+<h1>{{ 'Create Account' if new else 'Edit ' + u.username }}</h1>
+<form method="post" class="card" style="max-width:520px">
+  {% if new %}
+  <label>House *</label>
+  <select name="house" id="house" onchange="onHouse()">
+    <option value="{{ admin_house }}" {{ 'selected' if u.house==admin_house }}>{{ admin_house }} (admin account — no number)</option>
+    {% for h in houses %}<option value="{{ h }}" {{ 'selected' if u.house==h }}>{{ h }}</option>{% endfor %}
+  </select>
+  <div id="nonadmin-num">
+    <label>House number * <span class="help">(3 digits, unique within the house)</span></label>
+    <input type="text" name="number" value="{{ u.number or '' }}" inputmode="numeric" pattern="\d{3}" maxlength="3" placeholder="e.g. 123">
+  </div>
+  {% endif %}
+
+  <div class="inline">
+    <div><label>Username *</label>
+      {% if new %}<input type="text" name="username" value="{{ u.username or '' }}" required>
+      {% else %}<input type="text" value="{{ u.username }}" disabled>{% endif %}
+    </div>
+    <div><label>Display name *</label><input type="text" name="name" value="{{ u.name or '' }}" required></div>
+  </div>
+
+  {% if new %}
+  <div id="nonadmin">
+    <label>Roles *</label>
+    <div>
+      {% for r in ALL_ROLES if r != 'admin' %}
+      <label class="check"><input type="checkbox" name="roles" value="{{ r }}" {{ 'checked' if r in (u.roles or ['player']) }}> {{ r|capitalize }}</label>
+      {% endfor %}
+    </div>
+    <span class="help">Tick all that apply. Captains need a team below.</span>
+
+    <label>Team (for captain role)</label>
+    <select name="team">
+      <option value="">—</option>
+      {% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if u.team==t.id }}>{{ t.name }}</option>{% endfor %}
+    </select>
+
+    <div class="inline">
+      <div><label>Birth year (player)</label><input type="number" name="birth_year" min="1900" value="{{ u.birth_year or '' }}" placeholder="e.g. 2010"></div>
+      <div><label>Gender (player)</label><select name="division">
+        <option value="">—</option>
+        {% for d in divisions %}<option value="{{ d }}" {{ 'selected' if u.division==d }}>{{ d }}</option>{% endfor %}
+      </select></div>
+    </div>
+  </div>
+
+  <label>Email (optional)</label>
+  <input type="email" name="email" value="{{ u.email or '' }}">
+
+  <label>Security question *</label>
+  <select name="security_question">
+    <option value="">Select a question…</option>
+    {% for q in security_questions %}<option value="{{ q }}" {{ 'selected' if u.security_question==q }}>{{ q }}</option>{% endfor %}
+  </select>
+  <label>Answer *</label>
+  <input type="text" name="security_answer" autocomplete="off" placeholder="Used if they forget their password">
+
+  <div class="flash flash-info">A temporary password (<code>{{ default_password }}</code>) is set automatically.
+    The user must change it the first time they log in.</div>
+  {% else %}
+  <label>Roles *</label>
+  <div>
+    {% if u.is_admin %}<label class="check"><input type="checkbox" checked disabled> Admin</label>
+    <span class="help">Admin accounts are managed separately and keep the admin role.</span>
+    {% else %}
+      {% for r in ALL_ROLES if r != 'admin' %}
+      <label class="check"><input type="checkbox" name="roles" value="{{ r }}" {{ 'checked' if r in (u.roles or []) }}> {{ r|capitalize }}</label>
+      {% endfor %}
+      <span class="help">Tick all that apply. Captains need a team below.</span>
+    {% endif %}
+  </div>
+  {% if not u.is_admin %}
+  <label>Team (for captain role)</label>
+  <select name="team">
+    <option value="">—</option>
+    {% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if u.team==t.id }}>{{ t.name }}</option>{% endfor %}
+  </select>
+  {% endif %}
+  <label>Email (optional)</label>
+  <input type="email" name="email" value="{{ u.email or '' }}">
+  {% endif %}
+
+  <div class="actions" style="margin-top:.6rem">
+    <button class="btn">{{ 'Create Account' if new else 'Save changes' }}</button>
+    <a class="btn btn-ghost" href="{{ url_for('users_list') }}">Cancel</a>
+  </div>
+  {% if not new %}{{ audit_note(u) }}{% endif %}
+</form>
+{% if new %}
+<script>
+function onHouse(){
+  var admin = document.getElementById('house').value === {{ admin_house|tojson }};
+  document.getElementById('nonadmin').style.display = admin ? 'none' : 'block';
+  document.getElementById('nonadmin-num').style.display = admin ? 'none' : 'block';
+}
+onHouse();
+</script>
+{% endif %}
+{% endblock %}

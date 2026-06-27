@@ -1,0 +1,10 @@
+blinker==1.9.0
+click==8.4.1
+Flask==3.1.3
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+Werkzeug==3.1.8
+gunicorn>=21.2,<23
+# MySQL mode: pip install pymysql  (set SPORTS_DB_ENGINE=mysql to activate)
+# pymysql>=1.1,<2
