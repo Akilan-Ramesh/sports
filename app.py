@@ -15,7 +15,7 @@ from datetime import date, datetime, timedelta
 
 from flask import (
     Flask, render_template, request, redirect, url_for, session,
-    flash, abort, Response, g,
+    flash, abort, Response, g, send_from_directory,
 )
 
 import db
@@ -611,6 +611,18 @@ def _who(u):
     if u["is_admin"]:
         return "Admin"
     return u["name"]
+
+
+# --------------------------------------------------------------------------
+# PWA — service worker must be served from root scope
+# --------------------------------------------------------------------------
+@app.route("/sw.js")
+def service_worker():
+    resp = send_from_directory(app.static_folder, "sw.js",
+                               mimetype="application/javascript")
+    resp.headers["Service-Worker-Allowed"] = "/"
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
 
 
 # --------------------------------------------------------------------------

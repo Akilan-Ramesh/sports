@@ -12,9 +12,10 @@ env/
 # Database (local data — never commit)
 data/
 
-# Environment / secrets
+# Environment / secrets (example file is intentionally committed)
 .env
-.env.*
+.env.local
+.env.production
 
 # macOS
 .DS_Store

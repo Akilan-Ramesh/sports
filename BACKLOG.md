@@ -144,17 +144,9 @@ A living snapshot of what's built and what's next. Items are grouped by priority
 
 **X18** ✅ ~~**User-initiated password change**~~ — done (Change Password link in sidebar + mobile strip for all roles).
 
-**A01** `[Feat]` **PWA shell** — add `manifest.json`, service worker, offline cache for the main
-  views; installable on iOS/Android home screen from the browser. First step toward native. — M
+**A01** ✅ ~~**PWA shell**~~ — done (`manifest.json`, `sw.js` served at `/sw.js` with `Service-Worker-Allowed: /`; cache-first for `/static/*`, network-first for HTML; offline fallback to `/about`; iOS meta tags + `apple-touch-icon`; SVG icons at 192×512 — replace with PNG for full iOS home-screen quality).
 **X12** ✅ ~~**Captain team-scoped views**~~ — done (S31, see below).
-**X13** `[Sec/Ops]` **GitHub source control** — S
-
-  *Problem:* Code changes are made locally with no version history, no remote backup, and no
-  way to roll back a bad change. If the dev machine is lost or corrupted, the codebase is gone.
-
-  *Solution:* Push the repo to a private GitHub repository. Going forward, all changes are
-  committed locally and pushed to GitHub — GitHub is the canonical copy. Team members (or a
-  future CI/CD pipeline) can clone from there. No code lives only on one machine.
+**X13** ✅ ~~**GitHub source control**~~ — done (git init, `.gitignore`, initial commit of 65 files pushed to https://github.com/Akilan-Ramesh/sports).
 
 **X14** `[Sec/Ops]` **GoDaddy shared-hosting deployment** — M
 
