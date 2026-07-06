@@ -34,3 +34,7 @@ data/
 dist/
 build/
 *.egg-info/
+*.zip
+
+# Claude Code local settings
+.claude/settings.local.json

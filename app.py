@@ -171,6 +171,22 @@ def hash_answer(answer):
     return security.hash_password(a) if a else None
 
 
+def apply_security_question(u, current, sq, sa):
+    """Verify current password and persist a security-question change on its own,
+    independent of a password change. Returns (errors, changed) - errors is a list of
+    flash-ready strings; changed is False when sq was blank (nothing to update)."""
+    if not sq:
+        return [], False
+    row = db.query_one("SELECT password FROM sports_users WHERE id=?", (u["id"],))
+    if not u.get("must_change_pw") and not security.verify_password(current, row["password"]):
+        return ["Your current password is incorrect."], False
+    fields = {"security_question": sq}
+    if sa.strip():
+        fields["security_answer"] = hash_answer(sa)
+    update_account(u["id"], **fields)
+    return [], True
+
+
 def config():
     if "cfg" not in g:
         g.cfg = domain.get_config()
@@ -782,11 +798,26 @@ def change_password():
         )
 
     if request.method == "POST":
+        section = request.form.get("section", "password")
+
+        if section == "security":
+            sq = (request.form.get("security_question") or "").strip()
+            sa = request.form.get("security_answer") or ""
+            current = request.form.get("current") or ""
+            errors, changed = apply_security_question(u, current, sq, sa)
+            if errors:
+                for e in errors:
+                    flash(e, "danger")
+                return _render()
+            if changed:
+                log_activity("{} updated their security question".format(u["name"]))
+            flash("Security question updated." if changed else "No changes made.",
+                  "success" if changed else "info")
+            return redirect(url_for("change_password"))
+
         current = request.form.get("current") or ""
         new = request.form.get("password") or ""
         confirm = request.form.get("confirm") or ""
-        sq = (request.form.get("security_question") or "").strip()
-        sa = (request.form.get("security_answer") or "").strip()
         row = db.query_one("SELECT password FROM sports_users WHERE id=?", (u["id"],))
         errors = []
         if not u.get("must_change_pw") and not security.verify_password(current, row["password"]):
@@ -799,11 +830,8 @@ def change_password():
                 flash(e, "danger")
             return _render()
         set_account_password(u["id"], new, must_change=0)
-        if sq:
-            update_account(u["id"], security_question=sq,
-                           security_answer=security.hash_password(sa.lower()) if sa else None)
         log_activity("{} changed their password".format(u["name"]))
-        flash("Password updated." + (" Security question saved." if sq else ""), "success")
+        flash("Password updated.", "success")
         return redirect(url_for("dashboard"))
     return _render()
 
@@ -1024,28 +1052,45 @@ def profile_edit():
     if not p:
         flash("Your account isn't linked to a roster entry yet.", "warning")
         return redirect(url_for("dashboard"))
-    cats = config()["categories"]
 
     def _render(p):
         p["age"] = domain.age_from_birth_year(p.get("birth_year"))
         acct = db.query_one("SELECT security_question FROM sports_users WHERE id=?", (u["id"],))
+        cap_names = [r["name"] for r in db.query(
+            "SELECT name FROM sports_users WHERE team=? AND roles LIKE '%captain%' AND disabled=0",
+            (p.get("team"),))] if p.get("team") else []
+        captain_contact = ("Contact your captain ({})".format(", ".join(cap_names))
+                            if cap_names else "Contact your captain or admin")
         return render_template(
             "profile_edit.html", p=p,
-            divisions=domain.DIVISIONS, year=domain.current_year(),
             security_questions=domain.SECURITY_QUESTIONS,
             current_sq=(acct or {}).get("security_question") or "",
             forced=bool(u.get("must_change_pw")),
+            captain_contact=captain_contact,
         )
 
     if request.method == "POST":
         section = request.form.get("section", "profile")
 
+        if section == "security":
+            sq = (request.form.get("security_question") or "").strip()
+            sa = request.form.get("security_answer") or ""
+            current = request.form.get("current") or ""
+            errors, changed = apply_security_question(u, current, sq, sa)
+            if errors:
+                for e in errors:
+                    flash(e, "danger")
+                return _render(p)
+            if changed:
+                log_activity("{} updated their security question".format(u["name"]))
+            flash("Security question updated." if changed else "No changes made.",
+                  "success" if changed else "info")
+            return redirect(url_for("profile_edit"))
+
         if section == "password":
             cur = request.form.get("current") or ""
             new = request.form.get("password") or ""
             confirm = request.form.get("confirm") or ""
-            sq = (request.form.get("security_question") or "").strip()
-            sa = (request.form.get("security_answer") or "").strip()
             row = db.query_one("SELECT password FROM sports_users WHERE id=?", (u["id"],))
             errors = []
             if not u.get("must_change_pw") and not security.verify_password(cur, row["password"]):
@@ -1058,31 +1103,9 @@ def profile_edit():
                     flash(e, "danger")
                 return _render(p)
             set_account_password(u["id"], new, must_change=0)
-            if sq:
-                update_account(u["id"], security_question=sq,
-                               security_answer=security.hash_password(sa.lower()) if sa else None)
             log_activity("{} updated their password".format(u["name"]))
-            flash("Password updated." + (" Security question saved." if sq else ""), "success")
+            flash("Password updated.", "success")
             return redirect(url_for("profile_edit"))
-
-        # section == "profile"
-        by = request.form.get("birth_year")
-        p["division"] = request.form.get("division") or p.get("division")
-        p["birth_year"] = int(by) if by and by.isdigit() else None
-        p["category"] = domain.category_for_birth_year(p["birth_year"], cats)
-        errors = []
-        if not p["division"]:
-            errors.append("Gender is required.")
-        if not p["birth_year"]:
-            errors.append("Birth year is required.")
-        if errors:
-            for e in errors:
-                flash(e, "danger")
-            return _render(p)
-        db.execute("UPDATE sports_participants SET division=?, birth_year=?, category=? WHERE id=?",
-                   (p["division"], p["birth_year"], p["category"], p["id"]))
-        flash("Profile updated.", "success")
-        return redirect(url_for("profile_edit"))
 
     return _render(p)
 
@@ -1942,8 +1965,30 @@ def sports_status():
     except ValueError:
         week = 0
     today = date.today()
-    start = today - timedelta(days=today.weekday()) + timedelta(weeks=week)  # Monday
-    days = [start + timedelta(days=i) for i in range(7)]
+
+    # Optional custom date-range view ("calendar" jump): overrides the week
+    # paging below when a From date is supplied.
+    range_from = request.args.get("from") or ""
+    range_to = request.args.get("to") or ""
+    use_range = False
+    if range_from:
+        try:
+            d_from = date.fromisoformat(range_from)
+            d_to = date.fromisoformat(range_to) if range_to else d_from
+            if d_to < d_from:
+                d_from, d_to = d_to, d_from
+            if (d_to - d_from).days > 60:  # cap the range so the page stays sane
+                d_to = d_from + timedelta(days=60)
+            use_range = True
+        except ValueError:
+            use_range = False
+
+    if use_range:
+        start = d_from
+        days = [d_from + timedelta(days=i) for i in range((d_to - d_from).days + 1)]
+    else:
+        start = today - timedelta(days=today.weekday()) + timedelta(weeks=week)  # Monday
+        days = [start + timedelta(days=i) for i in range(7)]
 
     u = current_user()
     me = linked_participant(u) if (u and u["is_player"]) else None
@@ -2069,11 +2114,12 @@ def sports_status():
     return render_template("sports_status.html", view="all", cal=cal, start=start, end=days[-1],
                            week=week, prev_week=week - 1, next_week=week + 1,
                            is_current=(week == 0), show_key=bool(me),
-                           unscheduled=unscheduled,
+                           unscheduled=unscheduled, use_range=use_range,
                            categories=config()["categories"], divisions=domain.DIVISIONS,
                            teams_list=teams(),
                            filters={"age": f_age, "gender": f_gender, "sched": f_sched,
-                                    "team": f_team},
+                                    "team": f_team,
+                                    "date_from": days[0].isoformat(), "date_to": days[-1].isoformat()},
                            **common)
 
 
@@ -2515,6 +2561,8 @@ def results_list():
     if not f_team and u["is_captain"] and not u["is_admin"]:
         f_team = u.get("team") or ""
     f_name = request.args.get("name") or ""        # participant id
+    f_from = request.args.get("from") or ""        # event date range
+    f_to = request.args.get("to") or ""
 
     # Decide whose individual results to show (if any).
     target = None
@@ -2547,6 +2595,8 @@ def results_list():
             and (not f_age or (e.get("age_category") or "") == f_age)
             and (not f_cat or (e.get("category_id") or "") == f_cat)
             and (not f_sport or (e.get("sport_id") or "") == f_sport)
+            and (not f_from or (e.get("date") or "") >= f_from)
+            and (not f_to or (e.get("date") or "") <= f_to)
             and (team_sacs is None or e["id"] in team_sacs)]
     sacs.sort(key=lambda e: (e.get("sport_name") or "", e.get("age_category") or ""))
 
@@ -2563,9 +2613,10 @@ def results_list():
                            standings=standings,
                            named=named, categories=config()["categories"],
                            divisions=domain.DIVISIONS, sport_categories=sport_categories(),
-                           sports=all_sports(), combos=combos, teams=teams(),
+                           sports=all_sports(), combos=combos, teams=teams(), my_team=my_team,
                            filters={"age": f_age, "gender": f_gender, "category": f_cat,
-                                    "sport": f_sport, "team": f_team, "name": f_name},
+                                    "sport": f_sport, "team": f_team, "name": f_name,
+                                    "date_from": f_from, "date_to": f_to},
                            team_name=lambda t: domain.team_name(t, teams()))
 
 

@@ -70,7 +70,11 @@
     {% endfor %}
     <div class="actions" style="margin-top:1rem">
       <button class="btn">Save sign-ups</button>
+      {% if self_only %}
+      <a class="btn btn-ghost" href="{{ url_for('dashboard') }}">Back to dashboard</a>
+      {% else %}
       <a class="btn btn-ghost" href="{{ url_for('participants_list') }}">Back to participants</a>
+      {% endif %}
     </div>
   </div>
 </form>

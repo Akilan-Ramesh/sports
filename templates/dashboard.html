@@ -90,7 +90,7 @@
       {% set locked = e.sport_id in player_data.locked_ids %}
       <li style="padding:.55rem 0;border-bottom:1px solid var(--line)">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">
-          <strong>{{ e.sport_name }}</strong>
+          <strong><a href="{{ url_for('callsheet', sid=e.id) }}">{{ e.sport_name }}</a></strong>
           <span class="badge {{ sm[1] }}">{{ sm[0] }}</span>
         </div>
         <div class="muted" style="font-size:.85rem">

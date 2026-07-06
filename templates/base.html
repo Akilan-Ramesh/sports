@@ -53,9 +53,15 @@
     {% else %}
     <span class="role-chip role-{{ user.acting }}">{{ user.acting }}</span>
     {% endif %}
-    <span class="uname">{{ user.name }}</span>
+    <div class="role-switch user-menu">
+      <button type="button" class="uname" onclick="this.parentNode.classList.toggle('open')">{{ user.name }} ▾</button>
+      <div class="role-menu">
+        <a href="{{ url_for('profile_edit') }}">✏️ My Profile</a>
+        <a href="{{ url_for('about') }}">ℹ️ About</a>
+        <a href="{{ url_for('logout') }}">🚪 Sign out</a>
+      </div>
+    </div>
     <button type="button" class="icon-btn" id="themeToggle" aria-label="Toggle theme" title="Toggle light / dark"></button>
-    <a class="btn-sm" href="{{ url_for('logout') }}">Logout</a>
   </div>
 </header>
 {%- set _ep = request.endpoint %}
@@ -64,13 +70,9 @@
   <a href="{{ url_for('dashboard') }}" class="{{ 'active' if _ep == 'dashboard' }}">🏠 Home</a>
   <a href="{{ url_for('whats_new') }}" class="{{ 'active' if _ep == 'whats_new' }}">🆕 What's New</a>
   <a href="{{ url_for('sports_status') }}" class="{{ 'active' if _ep == 'sports_status' }}">📅 Sports</a>
-  <a href="{{ url_for('about') }}" class="{{ 'active' if _ep == 'about' }}">ℹ️ About</a>
   <a href="{{ url_for('results_list') }}" class="{{ 'active' if _ep in ['results_list','result_detail'] }}">📊 Results</a>
   {% if act in ['player','captain','admin'] %}
   <a href="{{ url_for('signup') }}" class="{{ 'active' if _ep == 'signup' }}">📝 Sign-up</a>
-  {% endif %}
-  {% if act == 'player' %}
-  <a href="{{ url_for('profile_edit') }}" class="{{ 'active' if _ep == 'profile_edit' }}">✏️ Profile</a>
   {% endif %}
   {% if act in ['captain','admin'] %}
   <a href="{{ url_for('participants_list') }}" class="{{ 'active' if _ep in ['participants_list','participant_edit','participant_new'] }}">👥 Participants</a>
@@ -97,13 +99,9 @@
     <a href="{{ url_for('dashboard') }}">🏠 Dashboard</a>
     <a href="{{ url_for('whats_new') }}">🆕 What's New</a>
     <a href="{{ url_for('sports_status') }}">📅 Sports Calendar</a>
-    <a href="{{ url_for('about') }}">ℹ️ About</a>
     <a href="{{ url_for('results_list') }}">📊 Results</a>
     {% if act in ['player','captain','admin'] %}
     <a href="{{ url_for('signup') }}">📝 Sports Sign-up</a>
-    {% endif %}
-    {% if act == 'player' %}
-    <a href="{{ url_for('profile_edit') }}">✏️ Edit Profile</a>
     {% endif %}
     {% if act == 'captain' %}
     <a href="{{ url_for('participants_list') }}">👥 Participants</a>

@@ -149,7 +149,7 @@ def run_checks(base, db_path):
     ck("anon /admin -> login", "/login" in url, url)
 
     admin, (c, u, b) = login("admin", "nicknick")
-    ck("admin login ok", "Logout" in b and not u.endswith("/login"))
+    ck("admin login ok", "Sign out" in b and not u.endswith("/login"))
     _, (c, u, b) = login("admin", "WRONGPW")
     ck("admin bad pw rejected", "Invalid" in b and u.endswith("/login"))
 

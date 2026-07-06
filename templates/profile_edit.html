@@ -6,43 +6,32 @@
   <a class="btn btn-ghost" href="{{ url_for('dashboard') }}">← Back</a>
 </div>
 
-<form method="post" class="card" style="max-width:520px">
-  <input type="hidden" name="section" value="profile">
-  <p class="muted" style="margin-top:0">You can update your gender and birth year. To change your name or team, contact your captain or admin.</p>
-
+<div class="card" style="max-width:520px">
   <label>Name</label>
   <input type="text" value="{{ p.name or '' }}" disabled>
+  <p style="margin:.3rem 0 0"><strong>{{ captain_contact }}</strong></p>
 
   <div class="inline" style="margin-top:.8rem">
     <div>
-      <label>Gender *</label>
-      <select name="division" required>
-        <option value="">Select…</option>
-        {% for d in divisions %}
-        <option value="{{ d }}" {{ 'selected' if p.division==d }}>{{ d }}</option>
-        {% endfor %}
-      </select>
+      <label>Gender</label>
+      <input type="text" value="{{ p.division or '—' }}" disabled>
+      <p style="margin:.3rem 0 0"><strong>{{ captain_contact }}</strong></p>
     </div>
     <div>
-      <label>Birth year *</label>
-      <input type="number" name="birth_year" min="1900" max="{{ year }}"
-             value="{{ p.birth_year or '' }}" required>
+      <label>Birth year</label>
+      <input type="text" value="{{ p.birth_year or '—' }}" disabled>
       <span class="help">
         Age category calculated automatically{% if p.age is not none %} (currently {{ p.age }}){% endif %}.
         Category: <strong>{{ p.category or '—' }}</strong>
       </span>
+      <p style="margin:.3rem 0 0"><strong>{{ captain_contact }}</strong></p>
     </div>
   </div>
-
-  <div class="actions" style="margin-top:1rem">
-    <button class="btn">Save changes</button>
-    <a class="btn btn-ghost" href="{{ url_for('dashboard') }}">Cancel</a>
-  </div>
-</form>
+</div>
 
 <form method="post" class="card" style="max-width:520px;margin-top:1rem">
   <input type="hidden" name="section" value="password">
-  <h2 style="margin-top:0;font-size:1.05rem">🔑 Password &amp; Security</h2>
+  <h2 style="margin-top:0;font-size:1.05rem">🔑 Password</h2>
   {% if forced %}
   <p class="muted" style="margin-top:0">Your account was set up with a temporary password. Choose your own to continue.</p>
   {% endif %}
@@ -56,21 +45,33 @@
   <label>Confirm new password *</label>
   <input type="password" name="confirm" required autocomplete="new-password">
 
-  <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)">
-    <label>Security question <span class="muted">(used to recover your account if you forget your password)</span></label>
-    <select name="security_question">
-      <option value="">— keep current{% if current_sq %} ({{ current_sq }}){% endif %} —</option>
-      {% for q in security_questions %}
-      <option value="{{ q }}" {{ 'selected' if q == current_sq }}>{{ q }}</option>
-      {% endfor %}
-    </select>
-    <label style="margin-top:.6rem">Security answer</label>
-    <input type="text" name="security_answer" placeholder="{% if current_sq %}Leave blank to keep current{% else %}Your answer{% endif %}" autocomplete="off">
-    <span class="help">Answer is case-insensitive.</span>
-  </div>
-
   <div class="actions" style="margin-top:1rem">
     <button class="btn">Update password</button>
+  </div>
+</form>
+
+<form method="post" class="card" style="max-width:520px;margin-top:1rem">
+  <input type="hidden" name="section" value="security">
+  <h2 style="margin-top:0;font-size:1.05rem">🛡️ Security question</h2>
+  <p class="muted" style="margin-top:0">Used to recover your account if you forget your password.</p>
+
+  <label>Security question</label>
+  <select name="security_question">
+    <option value="">— keep current{% if current_sq %} ({{ current_sq }}){% endif %} —</option>
+    {% for q in security_questions %}
+    <option value="{{ q }}" {{ 'selected' if q == current_sq }}>{{ q }}</option>
+    {% endfor %}
+  </select>
+  <label style="margin-top:.6rem">Security answer</label>
+  <input type="text" name="security_answer" placeholder="{% if current_sq %}Leave blank to keep current{% else %}Your answer{% endif %}" autocomplete="off">
+  <span class="help">Answer is case-insensitive.</span>
+  {% if not forced %}
+  <label style="margin-top:.6rem">Current password *</label>
+  <input type="password" name="current" required autocomplete="current-password">
+  {% endif %}
+
+  <div class="actions" style="margin-top:1rem">
+    <button class="btn">Update security question</button>
   </div>
 </form>
 {% endblock %}

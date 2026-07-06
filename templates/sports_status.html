@@ -68,6 +68,8 @@
 {# ===================== All events: filters + calendar ===================== #}
 <form class="card toolbar" method="get">
   <input type="hidden" name="view" value="all">
+  <input type="hidden" name="from" value="{{ filters.date_from if use_range }}">
+  <input type="hidden" name="to" value="{{ filters.date_to if use_range }}">
   <div><label>Age Category</label><select name="age" onchange="this.form.submit()">
     <option value="">All ages</option>
     {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if filters.age==c.id }}>{{ c.name }}</option>{% endfor %}
@@ -90,7 +92,23 @@
   <div><label>&nbsp;</label><a class="btn btn-ghost" href="{{ url_for('sports_status', view='all') }}">Clear filters</a></div>
 </form>
 
-{% if filters.sched != 'unscheduled' %}<p class="muted">Week of {{ start|dmy }} – {{ end|dmy }} — what's happening each day.</p>{% endif %}
+{% if filters.sched != 'unscheduled' %}
+<form method="get" class="card toolbar">
+  <input type="hidden" name="view" value="all">
+  <input type="hidden" name="age" value="{{ filters.age }}">
+  <input type="hidden" name="gender" value="{{ filters.gender }}">
+  <input type="hidden" name="sched" value="{{ filters.sched }}">
+  <input type="hidden" name="team" value="{{ filters.team }}">
+  <div><label>From</label><input type="date" name="from" value="{{ filters.date_from }}"></div>
+  <div><label>To</label><input type="date" name="to" value="{{ filters.date_to }}"></div>
+  <div><label>&nbsp;</label><button class="btn btn-sm">📅 Show dates</button></div>
+  {% if use_range %}
+  <div><label>&nbsp;</label><a class="btn-sm btn-ghost" href="{{ url_for('sports_status', view='all', age=filters.age, gender=filters.gender, sched=filters.sched, team=filters.team) }}">Back to week view</a></div>
+  {% endif %}
+</form>
+{% endif %}
+
+{% if filters.sched != 'unscheduled' %}<p class="muted">{% if use_range %}Showing{% else %}Week of{% endif %} {{ start|dmy }} – {{ end|dmy }}{% if not use_range %} — what's happening each day.{% endif %}</p>{% endif %}
 
 {% if show_key %}
 <div class="legend">
@@ -118,7 +136,7 @@
 </div>
 {% endif %}
 
-{% if filters.sched != 'unscheduled' %}
+{% if filters.sched != 'unscheduled' and not use_range %}
 <div class="page-head" style="margin-bottom:.4rem">
   <span class="muted">{% if not is_current %}<a class="btn-sm btn-ghost" href="{{ url_for('sports_status', view='all') }}">This week</a>{% endif %}</span>
   <div class="actions">
@@ -126,7 +144,9 @@
     <a class="btn-sm btn-ghost" href="{{ url_for('sports_status', view='all', week=next_week, age=filters.age, gender=filters.gender, sched=filters.sched, team=filters.team) }}">Next ▶</a>
   </div>
 </div>
+{% endif %}
 
+{% if filters.sched != 'unscheduled' %}
 <div class="week-cal">
   {% for d in cal %}
   <div class="day-row {{ 'is-today' if d.is_today }}">
