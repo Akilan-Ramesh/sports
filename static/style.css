@@ -316,8 +316,6 @@ input.dirty,select.dirty,textarea.dirty{border-color:var(--warn);box-shadow:0 0 
   box-shadow:0 30px 70px -20px rgba(0,0,0,.5);border:1px solid var(--line);animation:pop .4s ease}
 .auth-card h1{text-align:center;margin-bottom:.2rem}
 .auth-sub{text-align:center;color:var(--muted);margin-bottom:1.2rem}
-.cred-hint{margin-top:1rem;font-size:.78rem;color:var(--muted);background:var(--card-2);
-  padding:.7rem;border-radius:11px;border:1px solid var(--line)}
 
 /* ---- Password rules ---- */
 .pw-rules{list-style:none;padding:0;margin:.5rem 0;font-size:.85rem}

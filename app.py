@@ -632,7 +632,6 @@ def service_worker():
 def login():
     if current_user():
         return redirect(url_for("dashboard"))
-    has_demo_accounts = db.count("sports_users", "sample=1") > 0
     if request.method == "POST":
         username = (request.form.get("username") or "").strip().lower()
         password = request.form.get("password") or ""
@@ -641,7 +640,7 @@ def login():
         _login_failures[username] = fails
         if len(fails) >= MAX_FAILURES:
             flash("Too many failed attempts. Try again in a few minutes.", "danger")
-            return render_template("login.html", has_demo_accounts=has_demo_accounts)
+            return render_template("login.html")
         user = db.query_one("SELECT * FROM sports_users WHERE lower(username)=? OR lower(email)=?",
                             (username, username))
         if user and not user["disabled"] and security.verify_password(password, user["password"]):
@@ -662,7 +661,7 @@ def login():
             return redirect(url_for("dashboard"))
         _login_failures.setdefault(username, []).append(time.time())
         flash("Invalid username or password.", "danger")
-    return render_template("login.html", has_demo_accounts=has_demo_accounts)
+    return render_template("login.html")
 
 
 @app.route("/register", methods=["GET", "POST"])
