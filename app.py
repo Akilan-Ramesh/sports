@@ -1503,8 +1503,11 @@ def signup():
             abort(403)
         player_only = not (act_admin or act_captain)
         allowed_ids = eligible_sport_ids(sel, open_only=player_only)  # age+gender (+open) server-side
-        chosen = {s for s in request.form.getlist("events") if s in allowed_ids}  # sport ids
         current = set(participant_sport_ids(pid))
+        # Accept newly-checked sports only if still eligible, but never silently drop an
+        # already-registered sport just because it lost eligibility since sign-up — that's
+        # only for the player to undo by unchecking it.
+        chosen = {s for s in request.form.getlist("events") if s in allowed_ids or s in current}
         # A sport with a recorded result in a completed event can't be un-registered.
         locked = locked_sport_ids(pid)
         blocked = [sid for sid in (current - chosen) if sid in locked]
@@ -1531,16 +1534,24 @@ def signup():
     player_only = not (act_admin or act_captain)
     eligible_ids = eligible_sport_ids(selected, open_only=player_only) if selected else None
     locked = locked_sport_ids(pid) if pid else set()
-    grouped = []
+    registered_grouped = []
+    available_grouped = []
     sports = all_sports()
-    for c in sport_categories():
-        evs = [s for s in sports if s.get("category_id") == c["id"]
-               and (eligible_ids is None or s["id"] in eligible_ids or s["id"] in locked)]
-        evs.sort(key=lambda s: s["name"])
-        if evs:
-            grouped.append({"cat": c, "events": evs})
+    cats = sport_categories()
+    for c in cats:
+        cat_sports = [s for s in sports if s.get("category_id") == c["id"]]
+        reg_evs = [s for s in cat_sports if s["id"] in chosen or s["id"] in locked]
+        reg_evs.sort(key=lambda s: s["name"])
+        if reg_evs:
+            registered_grouped.append({"cat": c, "events": reg_evs})
+        avail_evs = [s for s in cat_sports if (eligible_ids is None or s["id"] in eligible_ids)
+                     and s["id"] not in chosen and s["id"] not in locked]
+        avail_evs.sort(key=lambda s: s["name"])
+        if avail_evs:
+            available_grouped.append({"cat": c, "events": avail_evs})
     return render_template("signup.html", people=people, selected=selected,
-                           grouped=grouped, chosen=chosen, locked=locked,
+                           registered_grouped=registered_grouped, available_grouped=available_grouped,
+                           chosen=chosen, locked=locked,
                            self_only=not (act_admin or act_captain),
                            teams=teams(), categories=config()["categories"],
                            divisions=domain.DIVISIONS, show_team_filter=act_admin)
