@@ -107,7 +107,7 @@ Click **Save** after adding all variables.
    - Creates the `sports_users` VIEW
    - Creates all 12 named indexes
    - Seeds sample data (admin login, demo participants)
-4. Log in with `admin` / `password` — you will be forced to set a new password immediately
+4. Log in with `admin` / `nicknick` — you will be forced to set a new password immediately
 
 ---
 
@@ -122,7 +122,7 @@ Click **Save** after adding all variables.
 ## Stage 8 — Verify
 
 - [ ] App loads at `https://yourdomain.com`
-- [ ] Login with `admin` / `password` → forced password change
+- [ ] Login with `admin` / `nicknick` → forced password change
 - [ ] Admin → Self-tests panel → **Run tests** → all pass
 - [ ] HTTPS padlock visible in browser
 - [ ] On mobile: browser offers "Add to Home Screen" (PWA)

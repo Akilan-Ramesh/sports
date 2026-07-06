@@ -24,11 +24,13 @@
       New here? <a href="{{ url_for('register') }}">Create an account</a>
       &nbsp;·&nbsp; <a href="{{ url_for('forgot_password') }}">Forgot password?</a>
     </p>
+    {% if has_demo_accounts %}
     <div class="cred-hint">
       <strong>Demo accounts</strong> — every account's password is currently
       <code>nicknick</code>.<br>
       e.g. admin · captain_smashers · player1 · u18_male
     </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

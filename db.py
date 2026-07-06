@@ -44,6 +44,8 @@ _local = threading.local()
 def get_conn():
     conn = getattr(_local, "conn", None)
     if conn is not None:
+        if _IS_MYSQL:
+            conn.ping(reconnect=True)
         return conn
     if _IS_MYSQL:
         import pymysql
@@ -68,13 +70,18 @@ def _sql(sql):
     """Translate SQLite-dialect SQL to the active engine's dialect."""
     if not _IS_MYSQL:
         return sql
+    # Escape literal % (e.g. LIKE '%x%' patterns) before introducing %s placeholders,
+    # since PyMySQL uses Python's % string formatting for parameter substitution.
+    sql = sql.replace("%", "%%")
     sql = sql.replace("?", "%s")
-    sql = sql.replace('"user"', "`user`")
-    sql = sql.replace("INSERT OR IGNORE INTO", "INSERT IGNORE INTO")
     sql = sql.replace(
-        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        'ON CONFLICT("key") DO UPDATE SET value = excluded.value',
         "ON DUPLICATE KEY UPDATE value=VALUES(value)",
     )
+    sql = sql.replace('"user"', "`user`")
+    sql = sql.replace('"read"', "`read`")
+    sql = sql.replace('"key"', "`key`")
+    sql = sql.replace("INSERT OR IGNORE INTO", "INSERT IGNORE INTO")
     return sql
 
 
@@ -225,7 +232,7 @@ CREATE TABLE IF NOT EXISTS sports_sports (
     modified_at INTEGER,
     sample      INTEGER NOT NULL DEFAULT 0
 );
--- Detail: which sport is allowed for which age category + gender; carries its
+-- Detail: which sport is allowed for which age category + gender -- carries its
 -- own scoring/points, single schedule (date/time/location) and lifecycle status.
 -- This is the unit that gets scored. (Replaces the old `events` table.)
 CREATE TABLE IF NOT EXISTS sports_sport_age_categories (
@@ -263,7 +270,7 @@ CREATE TABLE IF NOT EXISTS sports_score_votes (
 -- `user` is the stable login id (referenced by sports_notifications/sports_audit/votes), with
 -- username/password/roles on the row. `house` (VA/VB/VC/A/B/C/D) + `number`
 -- (3 digits) form a per-house identifier (unique within a house). `roster`=1 for
--- real competitors; 0 for login-only rows (e.g. a captain with no roster entry).
+-- real competitors, 0 for login-only rows (e.g. a captain with no roster entry).
 CREATE TABLE IF NOT EXISTS sports_participants (
     id         TEXT PRIMARY KEY,
     name       TEXT NOT NULL,
@@ -339,7 +346,7 @@ CREATE TABLE IF NOT EXISTS sports_notifications (
     type    TEXT,
     message TEXT,
     link    TEXT,
-    read    INTEGER NOT NULL DEFAULT 0
+    "read" INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS sports_audit (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -347,7 +354,7 @@ CREATE TABLE IF NOT EXISTS sports_audit (
     message TEXT
 );
 CREATE TABLE IF NOT EXISTS sports_settings (
-    key   TEXT PRIMARY KEY,
+    "key" TEXT PRIMARY KEY,
     value TEXT
 );
 -- Indexes on the foreign-key columns the app filters/joins on most.
@@ -401,11 +408,19 @@ def _mysql_ddl_statements():
         if not stmt:
             continue
         stmt = stmt.replace('"user"', "`user`")
+        stmt = stmt.replace('"read"', "`read`")
+        stmt = stmt.replace('"key"', "`key`")
         # TEXT PRIMARY KEY → VARCHAR(191) NOT NULL PRIMARY KEY
         stmt = re.sub(r"\bTEXT\s+PRIMARY\s+KEY\b", "VARCHAR(191) NOT NULL PRIMARY KEY", stmt, flags=re.IGNORECASE)
         # INTEGER PRIMARY KEY AUTOINCREMENT → INT NOT NULL AUTO_INCREMENT PRIMARY KEY
         stmt = re.sub(r"\bINTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT\b",
                       "INT NOT NULL AUTO_INCREMENT PRIMARY KEY", stmt, flags=re.IGNORECASE)
+        # Composite PRIMARY KEY (a, b) on TEXT columns needs an explicit key length in MySQL
+        stmt = re.sub(
+            r"PRIMARY KEY\s*\(([^)]+)\)",
+            lambda m: "PRIMARY KEY (" + ", ".join(c.strip() + "(191)" for c in m.group(1).split(",")) + ")",
+            stmt, flags=re.IGNORECASE,
+        )
         # Partial WHERE on indexes not supported by MySQL
         stmt = re.sub(r"\s+WHERE\s+\w+\s+IS\s+NOT\s+NULL(\s+AND\s+\w+\s+IS\s+NOT\s+NULL)?", "", stmt)
         if re.match(r"\s*CREATE\s+TABLE", stmt, re.IGNORECASE):
@@ -648,7 +663,7 @@ def dumps(value):
 # --- settings --------------------------------------------------------------
 
 def get_setting(key, default=None):
-    row = query_one("SELECT value FROM sports_settings WHERE key=?", (key,))
+    row = query_one('SELECT value FROM sports_settings WHERE "key"=?', (key,))
     if not row:
         return default
     return loads(row["value"], default)
@@ -656,7 +671,7 @@ def get_setting(key, default=None):
 
 def set_setting(key, value):
     execute(
-        "INSERT INTO sports_settings(key, value) VALUES(?, ?) "
-        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        'INSERT INTO sports_settings("key", value) VALUES(?, ?) '
+        'ON CONFLICT("key") DO UPDATE SET value = excluded.value',
         (key, dumps(value)),
     )  # _sql() translates ON CONFLICT → ON DUPLICATE KEY for MySQL

@@ -160,6 +160,33 @@ A living snapshot of what's built and what's next. Items are grouped by priority
   `DEPLOY.md`. Establish a manual deploy workflow: push to GitHub → SSH into GoDaddy → `git pull`
   → restart Passenger.
 
+  *Progress (2026-07-05):* App is fully live and confirmed working end-to-end at
+  `akilanramesh.com/sports` — MySQL DB fully initialised (all `sports_*` tables/views created in
+  the shared `akilandb` database), login (`admin` / `nicknick`) succeeds, redirects correctly stay
+  within `/sports`, Dashboard renders. Fixed several real MySQL-compatibility bugs found during
+  deploy: SQL-comment semicolons breaking DDL parsing, composite `TEXT` primary keys needing
+  explicit key lengths, reserved words `read`/`key` used as unquoted column names, literal `%` in
+  `LIKE` queries colliding with PyMySQL's parameter substitution, and stale pooled MySQL
+  connections not reconnecting after going idle (`conn.ping(reconnect=True)`).
+
+  *Remaining — X14b `[Sec/Ops]` Trusted HTTPS certificate (AutoSSL)* — S
+  Site currently serves a self-signed cert (cPanel-generated placeholder), which triggers Chrome's
+  HSTS-locked cert warning with no bypass option — and will block normal phone browsers outright
+  (no bypass UI on mobile Safari/Chrome the way desktop has). No self-service "Run AutoSSL" control
+  was found in cPanel's SSL/TLS Status page for this account — likely runs on GoDaddy's own
+  schedule. Next step: ask GoDaddy support to manually trigger AutoSSL for `akilanramesh.com` (a
+  simple, low-friction support request, unlike the earlier MySQL investigation). This is the one
+  genuinely blocking item for real phone access — once issued, verify on an actual phone browser
+  (login works, and check "Add to Home Screen" PWA prompt appears per A01).
+
+  *Remaining — X14c `[Debt]` Sync live hotfixes back into git + fix stale docs* — S
+  All the MySQL-compatibility fixes above were hot-patched directly on the server via SSH during
+  live debugging and mirrored locally, but never committed/pushed to GitHub — the server currently
+  can't do a clean `git pull` for future updates without first reconciling. Also fix `DEPLOY.md`'s
+  Stage 6/8 instructions, which still say to log in with `admin` / `password` — the actual seeded
+  credential is `admin` / `nicknick` (from `seed.py`'s `DEMO_PASSWORD`), and the stale doc caused
+  real confusion during this deploy.
+
 **X15** ✅ ~~**MySQL dual-mode backend**~~ — done (`SPORTS_DB_ENGINE=mysql` activates PyMySQL; `?`→`%s` translation; MySQL DDL generator; `CREATE OR REPLACE VIEW`; SQLite migration paths guarded).
 
 **X16** ✅ ~~**What's New page**~~ — done (`/whats-new`, login-required, timestamped release log in-code).
@@ -200,6 +227,11 @@ A living snapshot of what's built and what's next. Items are grouped by priority
 **X08** `[Sec/Ops]` **Persistent login throttle** (DB-backed; survives restart) + optional lockout.
   Currently in-memory. — M
 **X09** `[Debt]` **Structured logging** to file + raise/rotate audit retention (capped at 200). — S/M
+**X20** `[Debt]` **Self-tests panel timeout on shared hosting** — the admin Self-tests panel spins
+  up its own throwaway test server as a subprocess (`tests/test_app.py`), which times out with
+  "server did not start in time" on the GoDaddy shared/CloudLinux host (likely slower
+  process-spawning under the account's resource governor). Diagnostic-only, not a production bug —
+  possibly fixable with a longer startup timeout in `start_server()`. — S
 **L02** `[Sec/Ops]` Real **migration tool** (Alembic) for non-additive schema changes. — M/L
 **L03** `[Sec/Ops]` Automated **backups + retention**; restrict DB file perms / encrypt at rest. — M
 

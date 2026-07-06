@@ -412,7 +412,7 @@ def ensure_seed():
         for u in unassigned:
             for c in captains:
                 db.execute(
-                    "INSERT INTO sports_notifications(user_id, ts, type, message, link, read) "
+                    'INSERT INTO sports_notifications(user_id, ts, type, message, link, "read") '
                     "VALUES(?,?,?,?,?,0)",
                     (c["id"], ts, "new_player",
                      "New player '{}' ({}) registered and needs a team.".format(
@@ -471,7 +471,7 @@ def _seed_approval(sac_id, mode):
         db.execute("INSERT INTO sports_score_votes(sac_id, captain_id, decision, ts) VALUES(?,?,?,?)",
                    (sac_id, cid, decision, ts))
         if mode == "pending":
-            db.execute("INSERT INTO sports_notifications(user_id, ts, type, message, link, read) "
+            db.execute('INSERT INTO sports_notifications(user_id, ts, type, message, link, "read") '
                        "VALUES(?,?,?,?,?,0)",
                        (cid, ts, "approval",
                         "Results for '{}' need your approval.".format(label), "/approvals"))
@@ -479,7 +479,7 @@ def _seed_approval(sac_id, mode):
                "status='in_progress' WHERE id=?", (mode, sac_id))
     if mode == "disputed":
         for a in db.query("SELECT id FROM sports_users WHERE roles LIKE '%admin%'"):
-            db.execute("INSERT INTO sports_notifications(user_id, ts, type, message, link, read) "
+            db.execute('INSERT INTO sports_notifications(user_id, ts, type, message, link, "read") '
                        "VALUES(?,?,?,?,?,0)",
                        (a["id"], ts, "admin",
                         "A captain disputed the results for '{}'.".format(label), "/approvals"))

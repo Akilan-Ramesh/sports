@@ -467,7 +467,7 @@ def notify(user_ids, ntype, message, link=""):
         # Only deliver if the type is relevant to a role this user holds.
         if not role_relevant(db.loads(row["roles"], []) or [], ntype):
             continue
-        db.execute("INSERT INTO sports_notifications(user_id, ts, type, message, link, read) "
+        db.execute('INSERT INTO sports_notifications(user_id, ts, type, message, link, "read") '
                    "VALUES(?,?,?,?,?,0)", (uid, ts, ntype, message, link))
 
 
@@ -483,7 +483,7 @@ def notify_roles(roles, ntype, message, link=""):
 def unread_count(u):
     if not u:
         return 0
-    return db.count("sports_notifications", "user_id=? AND read=0", (u["id"],))
+    return db.count("sports_notifications", 'user_id=? AND "read"=0', (u["id"],))
 
 
 # --------------------------------------------------------------------------
@@ -632,6 +632,7 @@ def service_worker():
 def login():
     if current_user():
         return redirect(url_for("dashboard"))
+    has_demo_accounts = db.count("sports_users", "sample=1") > 0
     if request.method == "POST":
         username = (request.form.get("username") or "").strip().lower()
         password = request.form.get("password") or ""
@@ -640,7 +641,7 @@ def login():
         _login_failures[username] = fails
         if len(fails) >= MAX_FAILURES:
             flash("Too many failed attempts. Try again in a few minutes.", "danger")
-            return render_template("login.html")
+            return render_template("login.html", has_demo_accounts=has_demo_accounts)
         user = db.query_one("SELECT * FROM sports_users WHERE lower(username)=? OR lower(email)=?",
                             (username, username))
         if user and not user["disabled"] and security.verify_password(password, user["password"]):
@@ -661,7 +662,7 @@ def login():
             return redirect(url_for("dashboard"))
         _login_failures.setdefault(username, []).append(time.time())
         flash("Invalid username or password.", "danger")
-    return render_template("login.html")
+    return render_template("login.html", has_demo_accounts=has_demo_accounts)
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -1124,9 +1125,9 @@ def notifications_read():
     u = current_user()
     nid = request.form.get("id")
     if nid == "all":
-        db.execute("UPDATE sports_notifications SET read=1 WHERE user_id=?", (u["id"],))
+        db.execute('UPDATE sports_notifications SET "read"=1 WHERE user_id=?', (u["id"],))
     else:
-        db.execute("UPDATE sports_notifications SET read=1 WHERE user_id=? AND id=?", (u["id"], nid))
+        db.execute('UPDATE sports_notifications SET "read"=1 WHERE user_id=? AND id=?', (u["id"], nid))
     return redirect(request.referrer or url_for("sports_notifications"))
 
 
