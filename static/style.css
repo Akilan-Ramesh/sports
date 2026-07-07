@@ -366,16 +366,16 @@ body.js [data-reveal].revealed{animation:fadeup .55s cubic-bezier(.22,.61,.36,1)
 
 /* ---- Mobile-first breakpoint ---- */
 @media (max-width:640px){
-  /* Horizontal scrollable nav strip below topbar */
+  /* Wrapping nav strip below topbar — all top-level items/groups visible at
+     once (no horizontal scrolling needed); role-specific clusters (Team,
+     Admin) collapse into a tap-to-open dropdown to keep the row count down. */
   .mobile-strip{
-    display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;
-    scrollbar-width:none;gap:.35rem;
+    display:flex;flex-wrap:wrap;gap:.35rem;
     padding:.4rem .6rem;
     background:var(--card);border-bottom:1px solid var(--line);
     position:sticky;top:56px;z-index:40;flex-shrink:0;
   }
-  .mobile-strip::-webkit-scrollbar{display:none}
-  .mobile-strip a{
+  .mobile-strip a,.mobile-strip button.pill-btn{
     display:inline-flex;align-items:center;gap:.25rem;white-space:nowrap;
     padding:.3rem .65rem;border-radius:999px;
     font-size:.72rem;font-weight:600;
@@ -383,7 +383,10 @@ body.js [data-reveal].revealed{animation:fadeup .55s cubic-bezier(.22,.61,.36,1)
     border:1px solid var(--line);text-decoration:none;min-height:30px;line-height:1;
   }
   .mobile-strip a:hover{text-decoration:none;color:var(--ink)}
-  .mobile-strip a.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .mobile-strip a.active,.mobile-strip button.pill-btn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .mobile-strip .nav-group{position:static}
+  .mobile-strip .nav-group .role-menu{left:.6rem;right:.6rem;top:100%;margin-top:.3rem;min-width:0}
+  .mobile-strip .nav-group .role-menu a{font-size:.85rem}
 
   /* Sidebar & hamburger not needed — strip handles all nav */
   .sidebar{display:none!important}

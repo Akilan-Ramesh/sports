@@ -75,20 +75,40 @@
   <a href="{{ url_for('signup') }}" class="{{ 'active' if _ep == 'signup' }}">📝 Sign-up</a>
   {% endif %}
   {% if act in ['captain','admin'] %}
-  <a href="{{ url_for('participants_list') }}" class="{{ 'active' if _ep in ['participants_list','participant_edit','participant_new'] }}">👥 Participants</a>
-  <a href="{{ url_for('volunteers') }}" class="{{ 'active' if _ep == 'volunteers' }}">🙋 Volunteers</a>
-  <a href="{{ url_for('score_index') }}" class="{{ 'active' if _ep in ['score_index','score_event'] }}">✍️ Result Entry</a>
-  <a href="{{ url_for('approvals') }}" class="{{ 'active' if _ep == 'approvals' }}">✅ Approvals</a>
-  <a href="{{ url_for('change_password') }}" class="{{ 'active' if _ep == 'change_password' }}">🔑 Account</a>
+  {% set team_eps = ['participants_list','participant_edit','participant_new','volunteers','score_index','score_event','approvals','change_password'] %}
+  <div class="role-switch nav-group">
+    <button type="button" class="pill-btn {{ 'active' if _ep in team_eps }}" onclick="this.parentNode.classList.toggle('open')">👥 Team ▾</button>
+    <div class="role-menu">
+      <a href="{{ url_for('participants_list') }}" class="{{ 'active' if _ep in ['participants_list','participant_edit','participant_new'] }}">👥 Participants</a>
+      <a href="{{ url_for('volunteers') }}" class="{{ 'active' if _ep == 'volunteers' }}">🙋 Volunteers</a>
+      <a href="{{ url_for('score_index') }}" class="{{ 'active' if _ep in ['score_index','score_event'] }}">✍️ Result Entry</a>
+      <a href="{{ url_for('approvals') }}" class="{{ 'active' if _ep == 'approvals' }}">✅ Approvals</a>
+      <a href="{{ url_for('change_password') }}" class="{{ 'active' if _ep == 'change_password' }}">🔑 Account</a>
+    </div>
+  </div>
   {% endif %}
   {% if act == 'admin' %}
-  <a href="{{ url_for('admin_home') }}" class="{{ 'active' if _ep == 'admin_home' }}">🛠 Overview</a>
-  <a href="{{ url_for('admin_programs') }}" class="{{ 'active' if _ep in ['admin_programs','admin_program_form','admin_program_set_status'] }}">📋 Programs</a>
-  <a href="{{ url_for('admin_teams') }}" class="{{ 'active' if _ep == 'admin_teams' }}">🚩 Teams</a>
-  <a href="{{ url_for('sac_list') }}" class="{{ 'active' if _ep in ['sac_list','sac_edit','sac_new'] }}">🎯 Events</a>
-  <a href="{{ url_for('users_list') }}" class="{{ 'active' if _ep in ['users_list','user_form'] }}">👤 Users</a>
-  <a href="{{ url_for('admin_announcements') }}" class="{{ 'active' if _ep == 'admin_announcements' }}">📢 Announcements</a>
-  <a href="{{ url_for('admin_settings') }}" class="{{ 'active' if _ep == 'admin_settings' }}">⚙️ Settings</a>
+  {% set admin_eps = ['admin_home','admin_programs','admin_program_form','admin_program_set_status','admin_teams',
+                       'admin_sport_categories','admin_age_categories','sports_master','sac_list','sac_edit','sac_new',
+                       'team_selection','users_list','user_form','admin_announcements','admin_settings','admin_data','admin_reset'] %}
+  <div class="role-switch nav-group">
+    <button type="button" class="pill-btn {{ 'active' if _ep in admin_eps }}" onclick="this.parentNode.classList.toggle('open')">🛠 Admin ▾</button>
+    <div class="role-menu">
+      <a href="{{ url_for('admin_home') }}" class="{{ 'active' if _ep == 'admin_home' }}">🛠 Overview</a>
+      <a href="{{ url_for('admin_programs') }}" class="{{ 'active' if _ep in ['admin_programs','admin_program_form','admin_program_set_status'] }}">📋 Programs</a>
+      <a href="{{ url_for('admin_teams') }}" class="{{ 'active' if _ep == 'admin_teams' }}">🚩 Teams</a>
+      <a href="{{ url_for('admin_sport_categories') }}" class="{{ 'active' if _ep == 'admin_sport_categories' }}">🗂 Sport Categories</a>
+      <a href="{{ url_for('admin_age_categories') }}" class="{{ 'active' if _ep == 'admin_age_categories' }}">🎂 Age Categories</a>
+      <a href="{{ url_for('sports_master') }}" class="{{ 'active' if _ep == 'sports_master' }}">🏆 Sports</a>
+      <a href="{{ url_for('sac_list') }}" class="{{ 'active' if _ep in ['sac_list','sac_edit','sac_new'] }}">🎯 Sports Event</a>
+      <a href="{{ url_for('team_selection') }}" class="{{ 'active' if _ep == 'team_selection' }}">🧮 Team Selection</a>
+      <a href="{{ url_for('users_list') }}" class="{{ 'active' if _ep in ['users_list','user_form'] }}">👤 Users</a>
+      <a href="{{ url_for('admin_announcements') }}" class="{{ 'active' if _ep == 'admin_announcements' }}">📢 Announcements</a>
+      <a href="{{ url_for('admin_settings') }}" class="{{ 'active' if _ep == 'admin_settings' }}">⚙️ Settings</a>
+      <a href="{{ url_for('admin_data') }}" class="{{ 'active' if _ep == 'admin_data' }}">💾 Import / Backup</a>
+      <a href="{{ url_for('admin_reset') }}" class="{{ 'active' if _ep == 'admin_reset' }}">♻️ Reset</a>
+    </div>
+  </div>
   {% endif %}
   <a href="{{ url_for('notifications') }}" class="{{ 'active' if _ep == 'notifications' }}">
     🔔 Alerts{% if unread %}<span class="mns-badge">{{ unread }}</span>{% endif %}
