@@ -204,17 +204,25 @@ input::placeholder,textarea::placeholder{color:var(--muted)}
 .tabs .tab:hover{color:var(--ink);background:var(--bg);text-decoration:none}
 .tabs .tab.active{color:var(--brand);border-bottom-color:var(--brand)}
 
-/* weekly calendar (Sports Event board) — day ROWS, events flow horizontally */
+/* weekly calendar (Sports Event board) — collapsible day rows via <details>/<summary>,
+   so a whole week's shape is visible without scrolling through every event */
 .week-cal{display:flex;flex-direction:column;gap:.55rem}
-.day-row{display:flex;gap:.8rem;align-items:stretch;background:var(--card);border:1px solid var(--line);
+.day-row{background:var(--card);border:1px solid var(--line);
   border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
 .day-row.is-today{border-color:var(--brand);box-shadow:0 0 0 2px rgba(37,99,235,.25),var(--shadow)}
-.day-head{flex:0 0 92px;background:var(--card-2);border-right:1px solid var(--line);
-  padding:.6rem .7rem;font-family:var(--font-head);text-align:center}
-.day-head .dow{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
-.day-head .dnum{font-size:1.5rem;font-weight:800}
-.day-row.is-today .day-head .dnum{color:var(--brand)}
-.day-events{display:flex;flex-wrap:wrap;gap:.45rem;padding:.55rem;flex:1;align-content:flex-start}
+.day-row>summary.day-head{
+  display:flex;align-items:center;gap:.7rem;cursor:pointer;list-style:none;
+  padding:.55rem .8rem;font-family:var(--font-head);
+}
+.day-row>summary.day-head::-webkit-details-marker{display:none}
+.day-row>summary.day-head::after{content:'▾';margin-left:auto;color:var(--muted);transition:.15s}
+.day-row[open]>summary.day-head::after{transform:rotate(180deg)}
+.day-head-date{flex:0 0 auto;text-align:center;min-width:44px}
+.day-head-date .dow{font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;display:block}
+.day-head-date .dnum{font-size:1.15rem;font-weight:800}
+.day-row.is-today .day-head-date .dnum{color:var(--brand)}
+.day-summary{color:var(--muted);font-size:.82rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.day-events{display:flex;flex-wrap:wrap;gap:.45rem;padding:0 .8rem .7rem;border-top:1px solid var(--line);padding-top:.55rem;margin-top:.1rem}
 .day-event{display:block;background:var(--card-2);border:1px solid var(--line);border-radius:10px;
   padding:.4rem .55rem;color:var(--ink);min-width:150px}
 .day-event:hover{border-color:var(--brand-2);text-decoration:none;transform:translateY(-1px);box-shadow:var(--shadow)}
@@ -222,7 +230,7 @@ input::placeholder,textarea::placeholder{color:var(--muted)}
 .de-name{font-weight:700;font-size:.9rem;margin-top:.15rem}
 .de-meta{color:var(--muted);font-size:.76rem}
 .day-empty{color:var(--muted);padding:.7rem;font-size:.88rem}
-@media (max-width:560px){.day-head{flex-basis:64px}.day-event{min-width:0;flex:1}}
+@media (max-width:560px){.day-head-date{min-width:36px}.day-event{min-width:0;flex:1}}
 
 /* sign-up shades + legend */
 .legend{display:flex;flex-wrap:wrap;gap:1rem;font-size:.82rem;color:var(--muted);margin:.2rem 0 .6rem}

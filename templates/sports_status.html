@@ -120,8 +120,14 @@
 {# Unscheduled (not-yet-dated) events matching the current filter #}
 {% if unscheduled %}
 <div class="week-cal" style="margin-bottom:.7rem">
-  <div class="day-row">
-    <div class="day-head"><div class="dow">No date</div><div class="dnum">📌</div></div>
+  <details class="day-row" open>
+    <summary class="day-head">
+      <div class="day-head-date"><span class="dow">No date</span><span class="dnum">📌</span></div>
+      <div class="day-summary">
+        {{ unscheduled|length }} event{{ 's' if unscheduled|length != 1 }} ·
+        {{ unscheduled[:2]|map(attribute='sport_name')|join(', ') }}{% if unscheduled|length > 2 %} +{{ unscheduled|length - 2 }} more{% endif %}
+      </div>
+    </summary>
     <div class="day-events">
     {% for e in unscheduled %}
     {% set sm = STATUS_META.get(e.status, ('New','pill-draft')) %}
@@ -132,7 +138,7 @@
     </a>
     {% endfor %}
     </div>
-  </div>
+  </details>
 </div>
 {% endif %}
 
@@ -149,8 +155,18 @@
 {% if filters.sched != 'unscheduled' %}
 <div class="week-cal">
   {% for d in cal %}
-  <div class="day-row {{ 'is-today' if d.is_today }}">
-    <div class="day-head"><div class="dow">{{ d.label }}</div><div class="dnum">{{ d.day }}</div></div>
+  <details class="day-row {{ 'is-today' if d.is_today }}" {{ 'open' if d.is_today }}>
+    <summary class="day-head">
+      <div class="day-head-date"><span class="dow">{{ d.label }}</span><span class="dnum">{{ d.day }}</span></div>
+      <div class="day-summary">
+        {% if d.events %}
+        {{ d.events|length }} event{{ 's' if d.events|length != 1 }} ·
+        {{ d.events[:2]|map(attribute='sport_name')|join(', ') }}{% if d.events|length > 2 %} +{{ d.events|length - 2 }} more{% endif %}
+        {% else %}
+        No events
+        {% endif %}
+      </div>
+    </summary>
     <div class="day-events">
     {% for e in d.events %}
     {% set sm = STATUS_META.get(e.status, ('New','pill-draft')) %}
@@ -163,7 +179,7 @@
     <div class="day-empty">No events</div>
     {% endfor %}
     </div>
-  </div>
+  </details>
   {% endfor %}
 </div>
 {% endif %}{# week grid #}
