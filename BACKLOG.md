@@ -148,44 +148,37 @@ A living snapshot of what's built and what's next. Items are grouped by priority
 **X12** ✅ ~~**Captain team-scoped views**~~ — done (S31, see below).
 **X13** ✅ ~~**GitHub source control**~~ — done (git init, `.gitignore`, initial commit of 65 files pushed to https://github.com/Akilan-Ramesh/sports).
 
-**X14** `[Sec/Ops]` **GoDaddy shared-hosting deployment** — M
-
-  *Problem:* The app runs only locally; there's no way for players or captains to access it
-  from their phones. The hosting target is a GoDaddy shared-hosting account (cPanel, Python
-  support via Passenger/WSGI).
-
-  *Solution:* Set up a production deployment on GoDaddy: configure the Python app as a
-  Passenger WSGI application (`passenger_wsgi.py` already exists), set environment variables
-  (`SECRET_KEY`, `SPORTS_DEBUG=0`), enable HTTPS, and point the domain. Document the steps in
-  `DEPLOY.md`. Establish a manual deploy workflow: push to GitHub → SSH into GoDaddy → `git pull`
-  → restart Passenger.
-
-  *Progress (2026-07-05):* App is fully live and confirmed working end-to-end at
+**X14** ✅ ~~**GoDaddy shared-hosting deployment**~~ — done. App is fully live at
   `akilanramesh.com/sports` — MySQL DB fully initialised (all `sports_*` tables/views created in
-  the shared `akilandb` database), login (`admin` / `nicknick`) succeeds, redirects correctly stay
-  within `/sports`, Dashboard renders. Fixed several real MySQL-compatibility bugs found during
-  deploy: SQL-comment semicolons breaking DDL parsing, composite `TEXT` primary keys needing
-  explicit key lengths, reserved words `read`/`key` used as unquoted column names, literal `%` in
-  `LIKE` queries colliding with PyMySQL's parameter substitution, and stale pooled MySQL
-  connections not reconnecting after going idle (`conn.ping(reconnect=True)`).
+  the shared `akilandb` database), login works, HTTPS trusted, root domain redirects in. See
+  X14b/X14c for how the two blockers along the way were resolved.
 
-  *Remaining — X14b `[Sec/Ops]` Trusted HTTPS certificate (AutoSSL)* — S
-  Site currently serves a self-signed cert (cPanel-generated placeholder), which triggers Chrome's
-  HSTS-locked cert warning with no bypass option — and will block normal phone browsers outright
-  (no bypass UI on mobile Safari/Chrome the way desktop has). No self-service "Run AutoSSL" control
-  was found in cPanel's SSL/TLS Status page for this account — likely runs on GoDaddy's own
-  schedule. Next step: ask GoDaddy support to manually trigger AutoSSL for `akilanramesh.com` (a
-  simple, low-friction support request, unlike the earlier MySQL investigation). This is the one
-  genuinely blocking item for real phone access — once issued, verify on an actual phone browser
-  (login works, and check "Add to Home Screen" PWA prompt appears per A01).
+  *Deploy notes (2026-07-05):* Fixed several real MySQL-compatibility bugs found during deploy:
+  SQL-comment semicolons breaking DDL parsing, composite `TEXT` primary keys needing explicit key
+  lengths, reserved words `read`/`key` used as unquoted column names, literal `%` in `LIKE`
+  queries colliding with PyMySQL's parameter substitution, and stale pooled MySQL connections not
+  reconnecting after going idle (`conn.ping(reconnect=True)`).
 
-  *Remaining — X14c `[Debt]` Sync live hotfixes back into git + fix stale docs* — S
-  All the MySQL-compatibility fixes above were hot-patched directly on the server via SSH during
-  live debugging and mirrored locally, but never committed/pushed to GitHub — the server currently
-  can't do a clean `git pull` for future updates without first reconciling. Also fix `DEPLOY.md`'s
-  Stage 6/8 instructions, which still say to log in with `admin` / `password` — the actual seeded
-  credential is `admin` / `nicknick` (from `seed.py`'s `DEMO_PASSWORD`), and the stale doc caused
-  real confusion during this deploy.
+**X14b** ✅ ~~**Trusted HTTPS certificate**~~ — done (2026-07-07). GoDaddy's cPanel AutoSSL turned
+  out to be unavailable on this hosting plan (`uapi SSL start_autossl_check` → *"You do not have
+  the feature 'autossl'"*). Worked around it by installing `certbot` via pip (user-space, no root)
+  and issuing a real Let's Encrypt certificate via HTTP-01 webroot validation against
+  `~/public_html`, then installing it into cPanel via `uapi SSL install_ssl`. Site now serves a
+  properly trusted cert (expires 2026-10-05). Also fixed the bare domain root
+  (`akilanramesh.com/`) showing GoDaddy's default "Coming Soon" placeholder — added a scoped
+  `.htaccess` rule (`^$` → `/sports/`) that only redirects the exact root path, leaving the
+  account's other project subdirectories (`medtrack`, `skilltrack`, `cdta`, `cdta-workver`,
+  `dbdemo`, `abhishekjobs`) untouched.
+
+  *Follow-up — X14d (below, v2 backlog):* this cert was issued manually, not via AutoSSL, so it
+  won't auto-renew before expiry — needs either a renewal cron job or GoDaddy actually enabling
+  the account's `autossl` feature.
+
+**X14c** ✅ ~~**Sync live hotfixes back into git**~~ — done (2026-07-07). Confirmed all server-side
+  hotfixes (MySQL reserved-word quoting, `%`-escaping, `click` version pin, demo-credential hint
+  removal) were already captured in commits `a0c9f8e`/`6244af2`; fast-forwarded the server
+  (`git reset --hard origin/main`) to reconcile cleanly — clean `git pull` deploys work again.
+  `DEPLOY.md`'s stale `admin`/`password` credential doc fix folded into X14d.
 
 **X15** ✅ ~~**MySQL dual-mode backend**~~ — done (`SPORTS_DB_ENGINE=mysql` activates PyMySQL; `?`→`%s` translation; MySQL DDL generator; `CREATE OR REPLACE VIEW`; SQLite migration paths guarded).
 
@@ -219,6 +212,17 @@ A living snapshot of what's built and what's next. Items are grouped by priority
   Start/end dates are already stored; add validation so a program can only go **Active** on or
   after its start date, and auto-suggest **Completed** when the end date passes. Add status
   transition buttons on the program edit page (no free-text status field).
+
+**X14d** ✅ ~~**HTTPS cert auto-renewal**~~ — done (2026-07-09). Added `~/letsencrypt/reinstall-cert.sh`
+  on the server (re-runs `uapi SSL install_ssl` with the renewed cert files) and a daily cron job
+  (`0 3 * * * certbot renew ... --deploy-hook reinstall-cert.sh`) — a no-op most days, only
+  actually renews (and triggers the reinstall) once the cert is within 30 days of its 2026-10-05
+  expiry. Verified end-to-end with both `certbot renew --dry-run` and a direct run of the reinstall
+  script (confirmed idempotent — cPanel reported *"already installed... no changes"*). No manual
+  action needed going forward.
+
+  *Remaining — `DEPLOY.md` cleanup:* Stage 6/8 still document the stale `admin`/`password` login
+  (actual seeded credential is `admin`/`nicknick`) — small doc fix, not yet done.
 
 **X02** `[Feat]` **Audit / history viewer UI** — surface the created/modified data + the `audit`
   activity log (no browsing UI today). — M
@@ -275,4 +279,4 @@ script the MySQL equivalent before deploying.
 | DB-03 | `programs` table; per-program scoping columns added | v8 | ✅ Done | ⏳ Pending |
 | DB-04 | All tables, views, and named indexes prefixed with `sports_` (e.g. `participants` → `sports_participants`, `ix_results_sac` → `sports_ix_results_sac`); `users` VIEW → `sports_users`; old unprefixed tables/indexes dropped from local DB | v9 | ✅ Done | ✅ Ready — `init_db()` auto-creates all tables with prefix when `SPORTS_DB_ENGINE=mysql` |
 
-*Last updated: 2026-06-26. Re-tier items freely as priorities change.*
+*Last updated: 2026-07-09. Re-tier items freely as priorities change.*
