@@ -246,31 +246,38 @@ A living snapshot of what's built and what's next. Items are grouped by priority
   destructive reset-to-default action (next to "Set PW", which lets an admin set a specific
   password directly) is redundant/risky; keep "Set PW" only. — S
 
-**X23** `[Bug]` **"Internal Server Error" shown after account creation** (both self-register and
-  admin "+ Add Account") — S/M
+**X23** ✅ ~~**"Internal Server Error" / CSRF errors shown after every create/update**~~ — root
+  cause found and fixed (2026-07-13).
 
-  *Investigated (2026-07-09):* confirmed via the production DB that both `register()` and
-  `user_new()` complete 100% successfully server-side every time this was checked — the account
-  row, `created_by`/`created_at` audit stamp, and `sports_audit` log entry are all written
-  correctly, meaning the Python view code runs to completion with no exception (a real exception
-  would prevent the final audit-log write). The error text itself
-  ("*server encountered an internal error... either overloaded or an error in the application*")
-  is a generic Apache-level page, not Flask/Werkzeug's own error page — consistent with the
-  request being killed or timing out at the infrastructure level (GoDaddy/CloudLinux's per-account
-  resource governor, the same category of issue as X20) *after* the backend finished its work but
-  *before* the response reached the browser, not a code bug.
-  Ruled out: Python exceptions (disproven by DB evidence above); slow PBKDF2 hashing (measured
-  directly on the production server: ~60ms/hash, ~120ms for both hashes a registration does —
-  nowhere near enough to explain a timeout); `notify_roles()`'s overhead (only 29 total users).
-  *Mitigation applied:* `notify_roles()` was doing a full `sports_users` table scan **per role**
-  (e.g. 3 scans for `domain.ALL_ROLES` on the announcement path); changed to a single scan
-  regardless of role count. Real inefficiency worth fixing regardless, but unconfirmed whether it
-  was the actual cause given the small user count.
-  *Next step:* neither of us has WHM/root access to check for OOM-kill/CPU-limit (LVE) fault logs
-  around the exact failure timestamps, which would confirm the infrastructure theory conclusively.
-  Recommend a GoDaddy support ticket describing the symptom (generic Apache 500 after a Python App
-  request that provably completes its DB work) and asking them to check LVE fault logs for account
-  `bk5dfuepn1kx`.
+  *Investigated (2026-07-09):* confirmed via the production DB that `register()`/`user_new()`
+  complete 100% successfully server-side — the account row, audit stamp, and activity-log entry
+  are all written correctly. Ruled out Python exceptions, slow PBKDF2 hashing (~60ms/hash measured
+  directly on the server), and `notify_roles()`'s overhead. Applied a real but ultimately unrelated
+  efficiency fix (`notify_roles()` was doing a full table scan **per role** — now one scan total).
+
+  *Root cause found (2026-07-13):* the error was showing on **every** create/update, not
+  intermittently — reproduced a clean, minimal repro (fresh `GET /login` → immediately `POST
+  /login` with that exact CSRF token) failing with "CSRF token missing or invalid" using `curl`
+  directly, isolating it to session/CSRF signature verification itself, not infrastructure timing.
+  Compared SHA-256 hashes of `SPORTS_SECRET_KEY` (values never exposed) between the live running
+  Passenger worker's actual process environment (`/proc/<pid>/environ`) and the current
+  `cloudlinux-selector` config — **they didn't match**, even immediately after a forced restart
+  with a freshly-spawned worker process. The running app had been signing/verifying sessions with
+  a stale secret key that no longer matched deploys, causing CSRF/session verification to fail
+  whenever a request's session was established under one key and checked against another.
+  *Fixed:* regenerated `SPORTS_SECRET_KEY` and re-applied it via cPanel's Setup Python App UI
+  (user-driven, so the new key never had to pass through the assistant), then restarted. This
+  invalidated all existing sessions (expected, one-time) but resolved the underlying drift.
+
+**X24** ✅ ~~**Sports Events leaked across programs**~~ — done (2026-07-13). Creating a new
+  program (e.g. "tennis") still showed the original Sports Meet's Sports Events (100m Freestyle,
+  100m Sprint, etc.) — `teams()`, `sport_categories()`, and `all_sports()` were already correctly
+  scoped by `program_id`, but the shared `_SAC_SELECT` query (backing `load_sacs()`/`get_sac()`,
+  used by 15+ call sites: dashboard, sign-up, results, approvals, callsheet, etc.) joined
+  `sports_sport_age_categories` to `sports_sports` without ever filtering by the sport's
+  `program_id`. Fixed by baking `WHERE s.program_id=?` into the shared query itself, scoping every
+  caller automatically rather than patching each site individually. Verified locally: a fresh
+  program now shows zero Sports Events, teams, sport categories, or sports until you add your own.
 
 ---
 
@@ -312,4 +319,4 @@ script the MySQL equivalent before deploying.
 | DB-03 | `programs` table; per-program scoping columns added | v8 | ✅ Done | ⏳ Pending |
 | DB-04 | All tables, views, and named indexes prefixed with `sports_` (e.g. `participants` → `sports_participants`, `ix_results_sac` → `sports_ix_results_sac`); `users` VIEW → `sports_users`; old unprefixed tables/indexes dropped from local DB | v9 | ✅ Done | ✅ Ready — `init_db()` auto-creates all tables with prefix when `SPORTS_DB_ENGINE=mysql` |
 
-*Last updated: 2026-07-09. Re-tier items freely as priorities change.*
+*Last updated: 2026-07-13. Re-tier items freely as priorities change.*

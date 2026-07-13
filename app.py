@@ -277,7 +277,8 @@ def sport_in_use(sid):
 _SAC_SELECT = (
     "SELECT sac.*, s.name AS sport_name, s.category_id AS category_id, "
     "s.archived AS sport_archived FROM sports_sport_age_categories sac "
-    "JOIN sports_sports s ON s.id = sac.sport_id"
+    "JOIN sports_sports s ON s.id = sac.sport_id "
+    "WHERE s.program_id=?"
 )
 
 
@@ -291,14 +292,20 @@ def decode_sac(sac):
 
 
 def load_sacs(where="", params=()):
+    p = current_program()
+    if not p:
+        return []
     sql = _SAC_SELECT
     if where:
-        sql += " WHERE " + where
-    return [decode_sac(r) for r in db.query(sql, params)]
+        sql += " AND (" + where + ")"
+    return [decode_sac(r) for r in db.query(sql, (p["id"],) + tuple(params))]
 
 
 def get_sac(sid):
-    return decode_sac(db.query_one(_SAC_SELECT + " WHERE sac.id=?", (sid,)))
+    p = current_program()
+    if not p:
+        return None
+    return decode_sac(db.query_one(_SAC_SELECT + " AND sac.id=?", (p["id"], sid)))
 
 
 def sac_label(sac):
