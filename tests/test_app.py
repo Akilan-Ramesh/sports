@@ -163,11 +163,14 @@ def run_checks(base, db_path):
     no_tok = urllib.request.Request(base + "/login",
                                     data=urllib.parse.urlencode({"username": "admin",
                                                                  "password": "nicknick"}).encode())
-    try:
-        c2 = bare.op.open(no_tok, timeout=15).getcode()
-    except urllib.error.HTTPError as e:
-        c2 = e.code
-    ck("CSRF: POST without token rejected (400)", c2 == 400, str(c2))
+    # The 400 is now caught by a handler that redirects back with a flash
+    # message instead of a dead-end error page - so a bare urllib request
+    # (which follows redirects) lands on 200, not the raw 400 itself. The
+    # security property that matters is unchanged: login was never processed.
+    resp2 = bare.op.open(no_tok, timeout=15)
+    c2, body2 = resp2.getcode(), resp2.read().decode()
+    ck("CSRF: POST without token rejected + bounced back",
+       c2 == 200 and "reload and try again" in body2 and "Sign out" not in body2, str(c2))
 
     # ---- no referee remnants ----
     ck("no referee role in any user",

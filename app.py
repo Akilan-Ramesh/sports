@@ -3661,6 +3661,17 @@ def about():
                            schema_version=db.SCHEMA_VERSION)
 
 
+@app.errorhandler(400)
+def bad_request(e):
+    """Bounce back to wherever the request came from (e.g. a stale CSRF token
+    after a form sat open too long) instead of a dead-end error page."""
+    flash(getattr(e, "description", None) or "That didn't go through — please try again.", "danger")
+    ref = request.referrer or ""
+    if ref.startswith(request.host_url):
+        return redirect(ref)
+    return redirect(url_for("dashboard") if current_user() else url_for("login"))
+
+
 @app.errorhandler(403)
 def forbidden(e):
     return render_template("error.html", code=403,
