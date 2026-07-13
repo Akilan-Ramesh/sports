@@ -238,6 +238,39 @@ A living snapshot of what's built and what's next. Items are grouped by priority
   possibly fixable with a longer startup timeout in `start_server()`. — S
 **L02** `[Sec/Ops]` Real **migration tool** (Alembic) for non-additive schema changes. — M/L
 **L03** `[Sec/Ops]` Automated **backups + retention**; restrict DB file perms / encrypt at rest. — M
+**X21** ✅ ~~**Users & Roles page — filters + Age Category column**~~ — done (2026-07-09). Toolbar
+  with Name (free-text search, not a dropdown), Age Category, Role, Team, and Status filters;
+  Age Category column added right after Name (looked up from `sports_participants` per-user, since
+  the `sports_users` VIEW doesn't expose it — no schema change needed).
+**X22** `[UX]` **Remove the "Reset PW" button** from the Users &amp; Roles page — the one-click
+  destructive reset-to-default action (next to "Set PW", which lets an admin set a specific
+  password directly) is redundant/risky; keep "Set PW" only. — S
+
+**X23** `[Bug]` **"Internal Server Error" shown after account creation** (both self-register and
+  admin "+ Add Account") — S/M
+
+  *Investigated (2026-07-09):* confirmed via the production DB that both `register()` and
+  `user_new()` complete 100% successfully server-side every time this was checked — the account
+  row, `created_by`/`created_at` audit stamp, and `sports_audit` log entry are all written
+  correctly, meaning the Python view code runs to completion with no exception (a real exception
+  would prevent the final audit-log write). The error text itself
+  ("*server encountered an internal error... either overloaded or an error in the application*")
+  is a generic Apache-level page, not Flask/Werkzeug's own error page — consistent with the
+  request being killed or timing out at the infrastructure level (GoDaddy/CloudLinux's per-account
+  resource governor, the same category of issue as X20) *after* the backend finished its work but
+  *before* the response reached the browser, not a code bug.
+  Ruled out: Python exceptions (disproven by DB evidence above); slow PBKDF2 hashing (measured
+  directly on the production server: ~60ms/hash, ~120ms for both hashes a registration does —
+  nowhere near enough to explain a timeout); `notify_roles()`'s overhead (only 29 total users).
+  *Mitigation applied:* `notify_roles()` was doing a full `sports_users` table scan **per role**
+  (e.g. 3 scans for `domain.ALL_ROLES` on the announcement path); changed to a single scan
+  regardless of role count. Real inefficiency worth fixing regardless, but unconfirmed whether it
+  was the actual cause given the small user count.
+  *Next step:* neither of us has WHM/root access to check for OOM-kill/CPU-limit (LVE) fault logs
+  around the exact failure timestamps, which would confirm the infrastructure theory conclusively.
+  Recommend a GoDaddy support ticket describing the symptom (generic Apache 500 after a Python App
+  request that provably completes its DB work) and asking them to check LVE fault logs for account
+  `bk5dfuepn1kx`.
 
 ---
 

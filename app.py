@@ -488,11 +488,11 @@ def notify(user_ids, ntype, message, link=""):
 
 
 def notify_roles(roles, ntype, message, link=""):
-    ids = set()
-    for r in roles:
-        for row in db.query("SELECT id, roles FROM sports_users WHERE disabled=0"):
-            if r in (db.loads(row["roles"], []) or []):
-                ids.add(row["id"])
+    # One full scan regardless of how many roles are matched (was previously one
+    # scan *per role*, e.g. 3x for domain.ALL_ROLES) - same result, fewer round-trips.
+    role_set = set(roles)
+    ids = {row["id"] for row in db.query("SELECT id, roles FROM sports_users WHERE disabled=0")
+           if role_set & set(db.loads(row["roles"], []) or [])}
     notify(list(ids), ntype, message, link)
 
 
@@ -3060,8 +3060,38 @@ def _recompute_all_categories(cats):
 @app.route("/admin/users")
 @roles_required("admin")
 def users_list():
+    f_name = (request.args.get("name") or "").strip().lower()
+    f_role = request.args.get("role") or ""
+    f_team = request.args.get("team") or ""
+    f_status = request.args.get("status") or ""
+    f_age = request.args.get("age") or ""
+
     users = [decode_user(u) for u in db.query("SELECT * FROM sports_users ORDER BY username")]
+
+    # Age category isn't exposed by the sports_users VIEW (admin accounts have none) -
+    # look it up from sports_participants directly, keyed by the login/user id.
+    cat_by_uid = {r["user"]: r["category"] for r in
+                  db.query('SELECT "user", category FROM sports_participants WHERE "user" IS NOT NULL')}
+    for u in users:
+        u["category"] = cat_by_uid.get(u["id"])
+
+    if f_name:
+        users = [u for u in users if f_name in (u.get("name") or "").lower()
+                 or f_name in (u.get("username") or "").lower()]
+    if f_role:
+        users = [u for u in users if f_role in u["roles"]]
+    if f_team:
+        users = [u for u in users if u.get("team") == f_team]
+    if f_status:
+        want_disabled = f_status == "disabled"
+        users = [u for u in users if bool(u.get("disabled")) == want_disabled]
+    if f_age:
+        users = [u for u in users if u.get("category") == f_age]
+
     return render_template("users.html", users=users, teams=teams(),
+                           categories=config()["categories"],
+                           filters={"name": f_name, "role": f_role, "team": f_team,
+                                    "status": f_status, "age": f_age},
                            team_name=lambda t: domain.team_name(t, teams()))
 
 

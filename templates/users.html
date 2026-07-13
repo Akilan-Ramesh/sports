@@ -6,14 +6,40 @@
   <a class="btn" href="{{ url_for('user_new') }}">+ Add Account</a>
 </div>
 <p class="muted">A user can hold several roles at once. Grant or revoke a captain/admin role via <strong>Edit</strong>. At least one admin is always kept.</p>
+
+<form class="card toolbar" method="get">
+  <div style="flex:1.4"><label>Name</label>
+    <input type="text" name="name" value="{{ filters.name }}" placeholder="🔍 Search name or username…"></div>
+  <div><label>Age Category</label><select name="age" onchange="this.form.submit()">
+    <option value="">All ages</option>
+    {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if filters.age==c.id }}>{{ c.name }}</option>{% endfor %}
+  </select></div>
+  <div><label>Role</label><select name="role" onchange="this.form.submit()">
+    <option value="">All roles</option>
+    {% for r in ALL_ROLES %}<option value="{{ r }}" {{ 'selected' if filters.role==r }}>{{ r|capitalize }}</option>{% endfor %}
+  </select></div>
+  <div><label>Team</label><select name="team" onchange="this.form.submit()">
+    <option value="">All teams</option>
+    {% for t in teams %}<option value="{{ t.id }}" {{ 'selected' if filters.team==t.id }}>{{ t.name }}</option>{% endfor %}
+  </select></div>
+  <div><label>Status</label><select name="status" onchange="this.form.submit()">
+    <option value="">All</option>
+    <option value="active" {{ 'selected' if filters.status=='active' }}>Active</option>
+    <option value="disabled" {{ 'selected' if filters.status=='disabled' }}>Disabled</option>
+  </select></div>
+  <div><label>&nbsp;</label><button class="btn btn-sm">Search</button></div>
+  <div><label>&nbsp;</label><a class="btn-sm btn-ghost" href="{{ url_for('users_list') }}">Clear filters</a></div>
+</form>
+
 <div class="table-wrap">
 <table>
-  <thead><tr><th>Username</th><th>Name</th><th>Roles</th><th>Team</th><th>Status</th><th>Actions</th></tr></thead>
+  <thead><tr><th>Username</th><th>Name</th><th>Age Category</th><th>Roles</th><th>Team</th><th>Status</th><th>Actions</th></tr></thead>
   <tbody>
   {% for u in users %}
     <tr>
       <td><code>{{ u.username }}</code></td>
       <td>{{ u.name }}</td>
+      <td>{{ u.category or '—' }}</td>
       <td>{% for r in u.roles %}<span class="role-chip role-{{ r }}">{{ r }}</span> {% endfor %}</td>
       <td>{{ team_name(u.team) if u.team else '—' }}</td>
       <td>{{ 'Disabled' if u.disabled else 'Active' }}</td>
@@ -25,7 +51,7 @@
       </td>
     </tr>
     <tr id="reset-{{ u.id }}" style="display:none">
-      <td colspan="6">
+      <td colspan="7">
         <form method="post" action="{{ url_for('user_reset', uid=u.id) }}" class="actions">
           <input type="password" name="password" placeholder="New strong password" required style="max-width:260px">
           <button class="btn-sm btn-ok">Set password</button>
