@@ -8,6 +8,7 @@ points/places. Admins maintain everything from separate maintenance pages and
 can wipe the sample data once their real data is in.
 """
 import functools
+import logging
 import os
 import secrets
 import time
@@ -26,8 +27,28 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SPORTS_SECRET_KEY", "dev-change-me-in-production")
 app.permanent_session_lifetime = 30 * 60
 
+# Unhandled exceptions (500s) always get logged here, regardless of hosting
+# setup swallowing stderr - lets us actually see what broke without exposing
+# any traceback to the client (SPORTS_DEBUG never changes this: it only
+# affects the local `python3 app.py` dev server's own error page).
+_log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tmp", "error.log")
+try:
+    os.makedirs(os.path.dirname(_log_path), exist_ok=True)
+    _file_handler = logging.FileHandler(_log_path)
+    _file_handler.setLevel(logging.ERROR)
+    _file_handler.setFormatter(logging.Formatter(
+        "%(asctime)s %(levelname)s %(message)s"))
+    app.logger.addHandler(_file_handler)
+    app.logger.setLevel(logging.ERROR)
+except OSError:
+    pass  # non-writable filesystem (e.g. read-only local checkout) - skip
+
 # --- Security / production config ------------------------------------------
 _DEBUG = os.environ.get("SPORTS_DEBUG", "1") not in ("0", "false", "False", "")
+# app.run(debug=...) only takes effect when this module is executed directly
+# (local dev); sets it here too so it actually applies under Passenger/WSGI,
+# which imports `app` directly and never hits the __main__ block below.
+app.debug = _DEBUG
 # Secure cookie flags. Secure-only cookies in production (HTTPS); HttpOnly always;
 # SameSite=Lax blocks cross-site form posts (defence-in-depth alongside CSRF tokens).
 app.config.update(
