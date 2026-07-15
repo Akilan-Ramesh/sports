@@ -186,6 +186,23 @@ A living snapshot of what's built and what's next. Items are grouped by priority
 
 **X17** ✅ ~~**About page**~~ — done (`/about`, public, shows app name/features/contact/schema version).
 
+**X25** `[Bug/Feat]` **Age calculation — configurable reference date + test coverage** — S/M
+
+  *Problem:* `domain.age_from_birth_year()` computes age as `date.today().year - birth_year` —
+  purely calendar-year-based, with no configurable reference date. Age category (and eligibility)
+  silently shifts on Jan 1 every year regardless of when the actual program/meet runs, and there's
+  no way to set a fixed "age as of" cutoff date the way most youth sports federations require
+  (e.g. age as of the program's start date, not whenever someone happens to check). No test
+  coverage exists for this logic at all (`age_from_birth_year`/`category_for_birth_year`/
+  `derive_category` in `domain.py` — zero references in `tests/test_app.py`).
+
+  *Solution:* Add an "Age calculation start date" field to the Settings page (`admin_settings()` /
+  `templates/settings.html`) stored via `db.set_setting()`, used as the reference date in place of
+  `date.today()` when computing age/category (`age_from_birth_year`, `category_for_birth_year`).
+  Add self-tests covering: birthday-adjacent edge cases (day before/after the cutoff date crossing
+  a category boundary), leap-year birth years, missing/invalid birth year input, and category
+  boundary values (exact `min_age`/`max_age` matches).
+
 ---
 
 ## 🔵 v2 — after v1
@@ -278,6 +295,19 @@ A living snapshot of what's built and what's next. Items are grouped by priority
   `program_id`. Fixed by baking `WHERE s.program_id=?` into the shared query itself, scoping every
   caller automatically rather than patching each site individually. Verified locally: a fresh
   program now shows zero Sports Events, teams, sport categories, or sports until you add your own.
+
+**X26** ✅ ~~**Age Categories leaked across programs**~~ — done (2026-07-15). Same class of bug as
+  X24, different subsystem: age categories (`config()["categories"]`) were stored under a single
+  global settings key (`"categories"`), shared by every program, unlike teams/sports/sport
+  categories which already had `program_id` columns. Fixed by making the settings key per-program
+  (`"categories_" + program_id`, via `domain.get_config(program_id)`) — every existing reader
+  already went through `config()["categories"]`, so this scoped all of them at once. Also fixed two
+  related bugs surfaced by the same code path: `_recompute_all_categories()` was recomputing every
+  participant in the database (any program) using whichever program's age bands were just edited —
+  risked corrupting other programs' participant categories; now scoped via the participant's team's
+  `program_id`. The Age Categories page's "in use" counts were similarly unscoped; now joined
+  through `sports_teams`/`sports_sports` to the current program. `_wipe_all()` and `seed.py`'s
+  initial seed updated to match the new per-program key convention.
 
 ---
 

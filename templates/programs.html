@@ -17,7 +17,7 @@
         <th>Dates</th>
         <th>Teams</th>
         <th>Sports</th>
-        <th class="right">Actions</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -38,17 +38,8 @@
         <td data-label="Dates" class="muted">{{ p.start_date or '—' }} → {{ p.end_date or 'ongoing' }}</td>
         <td data-label="Teams"><span class="badge">{{ p.n_teams }}</span></td>
         <td data-label="Sports"><span class="badge">{{ p.n_sports }}</span></td>
-        <td data-label="" class="right actions" style="justify-content:flex-end;flex-wrap:wrap;gap:.3rem">
+        <td data-label="" class="actions" style="flex-wrap:wrap;gap:.3rem">
           <a href="{{ url_for('admin_program_edit', pid=p.id) }}" class="btn-sm">Edit</a>
-          {% if p.in_use %}
-          <details class="usage">
-            <summary class="badge pill-pending" style="cursor:pointer;list-style:none">In use ▾</summary>
-            <div class="usage-pop">
-              <strong>Used in</strong>
-              <ul>{% for lbl, n in p.usage.items() %}<li><span>{{ lbl }}</span><strong>{{ n }}</strong></li>{% endfor %}</ul>
-            </div>
-          </details>
-          {% endif %}
           <form method="post" action="{{ url_for('admin_program_switch', pid=p.id) }}" style="display:inline">
             <button class="btn-sm">Switch to</button>
           </form>
@@ -65,6 +56,15 @@
             <input type="hidden" name="status" value="{{ next_status }}">
             <button class="btn-sm btn-ok">{{ next_status|title }} →</button>
           </form>
+          {% endif %}
+          {% if p.in_use %}
+          <details class="usage">
+            <summary class="badge pill-pending" style="cursor:pointer;list-style:none">In use ▾</summary>
+            <div class="usage-pop">
+              <strong>Used in</strong>
+              <ul>{% for lbl, n in p.usage.items() %}<li><span>{{ lbl }}</span><strong>{{ n }}</strong></li>{% endfor %}</ul>
+            </div>
+          </details>
           {% endif %}
         </td>
       </tr>

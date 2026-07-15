@@ -154,7 +154,7 @@ def ensure_seed():
         db.set_setting("event_name", DEFAULT_PROGRAM_NAME)
         db.set_setting("points", domain.DEFAULT_POINTS)
         db.set_setting("count_in_progress", False)
-        db.set_setting("categories", domain.DEFAULT_CATEGORIES)
+        db.set_setting("categories_" + DEFAULT_PROGRAM_ID, domain.DEFAULT_CATEGORIES)
         db.set_setting("sender_email", "")
     for role, pw in ROLE_PASSWORDS.items():
         if db.get_setting("role_pw_" + role) is None:

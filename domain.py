@@ -150,12 +150,16 @@ DEFAULT_SPORT_CATEGORIES = [
 DEFAULT_POINTS = {"1": 5, "2": 3, "3": 1}
 
 
-def get_config():
+def get_config(program_id=None):
+    # Age categories are the one per-program setting here - each program can
+    # define its own age bands. Everything else (event name, points, sender
+    # email) is shared site-wide.
+    cat_key = "categories_" + program_id if program_id else "categories"
     return {
         "event_name": db.get_setting("event_name", "Community Sports Meet 2026"),
         "points": db.get_setting("points", DEFAULT_POINTS),
         "count_in_progress": db.get_setting("count_in_progress", False),
-        "categories": db.get_setting("categories", DEFAULT_CATEGORIES),
+        "categories": db.get_setting(cat_key, DEFAULT_CATEGORIES),
         "sender_email": db.get_setting("sender_email", ""),
     }
 

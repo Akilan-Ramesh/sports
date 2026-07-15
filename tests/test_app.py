@@ -472,7 +472,7 @@ def run_checks(base, db_path):
     ck("sport duplicate-name blocked", db("SELECT COUNT(*) n FROM sports_sports WHERE name=?", (dup,))[0]["n"] == 1)
 
     # ---- age overlap rejection ----
-    catlist = _j.loads(db("SELECT value FROM sports_settings WHERE key='categories'")[0]["value"])
+    catlist = _j.loads(db("SELECT value FROM sports_settings WHERE key='categories_default'")[0]["value"])
     n_before = len(catlist)
     form = {"new_name": "QA Overlap", "new_min": "5", "new_max": "10"}
     for cobj in catlist:
@@ -480,7 +480,7 @@ def run_checks(base, db_path):
         form["min_%s" % cobj["id"]] = cobj["min_age"]
         form["max_%s" % cobj["id"]] = cobj["max_age"]
     code, url, body = admin.req("/admin/age-categories", form)
-    n_after = len(_j.loads(db("SELECT value FROM sports_settings WHERE key='categories'")[0]["value"]))
+    n_after = len(_j.loads(db("SELECT value FROM sports_settings WHERE key='categories_default'")[0]["value"]))
     ck("age overlap rejected (count unchanged)", n_after == n_before, "%d->%d" % (n_before, n_after))
     ck("age overlap shows message", "overlap" in body.lower())
 

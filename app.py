@@ -189,7 +189,8 @@ def apply_security_question(u, current, sq, sa):
 
 def config():
     if "cfg" not in g:
-        g.cfg = domain.get_config()
+        p = current_program()
+        g.cfg = domain.get_config(p["id"] if p else None)
     return g.cfg
 
 
@@ -3011,15 +3012,22 @@ def admin_age_categories():
                                    new_band={"name": nname,
                                              "min": request.form.get("new_min") or "",
                                              "max": request.form.get("new_max") or ""})
-        db.set_setting("categories", new)
-        _recompute_all_categories(new)
+        p = current_program()
+        pid = p["id"] if p else None
+        db.set_setting("categories_" + pid if pid else "categories", new)
+        _recompute_all_categories(new, pid)
         log_activity("Admin updated age groups")
         flash("Age groups saved.", "success")
         return redirect(url_for("admin_age_categories"))
+    pid = (current_program() or {}).get("id")
     p_counts = {r["category"]: r["n"] for r in db.query(
-        "SELECT category, COUNT(*) AS n FROM sports_participants WHERE category IS NOT NULL GROUP BY category")}
+        "SELECT p.category AS category, COUNT(*) AS n FROM sports_participants p "
+        "JOIN sports_teams t ON t.id = p.team "
+        "WHERE t.program_id=? AND p.category IS NOT NULL GROUP BY p.category", (pid,))} if pid else {}
     sac_counts = {r["age_category"]: r["n"] for r in db.query(
-        "SELECT age_category, COUNT(*) AS n FROM sports_sport_age_categories WHERE age_category IS NOT NULL GROUP BY age_category")}
+        "SELECT sac.age_category AS age_category, COUNT(*) AS n FROM sports_sport_age_categories sac "
+        "JOIN sports_sports s ON s.id = sac.sport_id "
+        "WHERE s.program_id=? AND sac.age_category IS NOT NULL GROUP BY sac.age_category", (pid,))} if pid else {}
     for c in cats:
         n_p = p_counts.get(c["id"], 0)
         n_sac = sac_counts.get(c["id"], 0)
@@ -3057,8 +3065,16 @@ def _unique_age_id(name, existing):
     return sid
 
 
-def _recompute_all_categories(cats):
-    for p in db.query("SELECT id, birth_year FROM sports_participants"):
+def _recompute_all_categories(cats, program_id=None):
+    """Recompute category for participants on this program's teams only - a
+    program's age bands shouldn't reach into other programs' participants."""
+    if program_id:
+        rows = db.query(
+            "SELECT p.id, p.birth_year FROM sports_participants p "
+            "JOIN sports_teams t ON t.id = p.team WHERE t.program_id=?", (program_id,))
+    else:
+        rows = db.query("SELECT id, birth_year FROM sports_participants")
+    for p in rows:
         cat = domain.category_for_birth_year(p["birth_year"], cats)
         db.execute("UPDATE sports_participants SET category=? WHERE id=?", (cat, p["id"]))
 
@@ -3623,6 +3639,9 @@ def _wipe_all(current):
               "sports_sports", "sports_announcements", "sports_notifications", "sports_audit", "sports_event_lineups",
               "sports_teams", "sports_sport_categories"):
         db.execute("DELETE FROM {}".format(t))
+    # Programs themselves survive a wipe - reset every program's age categories
+    # (not just the legacy global key) back to the default set.
+    db.execute('DELETE FROM sports_settings WHERE "key"=? OR "key" LIKE ?', ("categories", "categories_%"))
     db.set_setting("categories", domain.DEFAULT_CATEGORIES)
 
 
