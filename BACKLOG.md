@@ -263,28 +263,40 @@ A living snapshot of what's built and what's next. Items are grouped by priority
   destructive reset-to-default action (next to "Set PW", which lets an admin set a specific
   password directly) is redundant/risky; keep "Set PW" only. — S
 
-**X23** ✅ ~~**"Internal Server Error" / CSRF errors shown after every create/update**~~ — root
-  cause found and fixed (2026-07-13).
+**X23** ✅ ~~**"Internal Server Error" shown after every create/update**~~ — actual root cause
+  found and fixed (2026-07-16), after several earlier rounds that fixed real but secondary issues
+  without resolving the core bug.
 
-  *Investigated (2026-07-09):* confirmed via the production DB that `register()`/`user_new()`
-  complete 100% successfully server-side — the account row, audit stamp, and activity-log entry
-  are all written correctly. Ruled out Python exceptions, slow PBKDF2 hashing (~60ms/hash measured
-  directly on the server), and `notify_roles()`'s overhead. Applied a real but ultimately unrelated
-  efficiency fix (`notify_roles()` was doing a full table scan **per role** — now one scan total).
+  *Round 1 (2026-07-09):* confirmed via the production DB that `register()`/`user_new()` complete
+  100% successfully server-side — the account row, audit stamp, and activity-log entry are all
+  written correctly. Ruled out Python exceptions, slow PBKDF2 hashing, and `notify_roles()`'s
+  overhead. Applied a real but ultimately unrelated efficiency fix (`notify_roles()` was doing a
+  full table scan **per role** — now one scan total).
 
-  *Root cause found (2026-07-13):* the error was showing on **every** create/update, not
-  intermittently — reproduced a clean, minimal repro (fresh `GET /login` → immediately `POST
-  /login` with that exact CSRF token) failing with "CSRF token missing or invalid" using `curl`
-  directly, isolating it to session/CSRF signature verification itself, not infrastructure timing.
-  Compared SHA-256 hashes of `SPORTS_SECRET_KEY` (values never exposed) between the live running
-  Passenger worker's actual process environment (`/proc/<pid>/environ`) and the current
-  `cloudlinux-selector` config — **they didn't match**, even immediately after a forced restart
-  with a freshly-spawned worker process. The running app had been signing/verifying sessions with
-  a stale secret key that no longer matched deploys, causing CSRF/session verification to fail
-  whenever a request's session was established under one key and checked against another.
-  *Fixed:* regenerated `SPORTS_SECRET_KEY` and re-applied it via cPanel's Setup Python App UI
-  (user-driven, so the new key never had to pass through the assistant), then restarted. This
-  invalidated all existing sessions (expected, one-time) but resolved the underlying drift.
+  *Round 2 (2026-07-13):* found and fixed a genuine, separate bug — `SPORTS_SECRET_KEY` in the
+  live Passenger worker's actual process environment didn't match the `cloudlinux-selector` config
+  (compared via SHA-256 hashes, values never exposed), causing session/CSRF verification to fail
+  whenever a request landed on a worker signed with a different key than it was issued under.
+  Regenerated and re-applied the key. Real fix, but not the cause of *this* error — CSRF failures
+  are a 400 caught before the view even runs, whereas the account/program/team rows were
+  demonstrably always being written, meaning the view itself was completing.
+
+  *Actual root cause (2026-07-16):* added a file-based error logger (`app.logger` → `tmp/error.log`
+  on the server, never exposed to clients) since `SPORTS_DEBUG` turned out to never have taken
+  effect under Passenger/WSGI in the first place (`app.run(debug=_DEBUG)` only fires inside
+  `if __name__=="__main__"`, which Passenger never executes — fixed by setting `app.debug = _DEBUG`
+  at module level too). With logging live, reproduced the error once more and read the real
+  traceback: `log_activity()` — called after nearly every write in the app (program/team/account
+  creation, sign-ups, everything) — ends with `DELETE FROM sports_audit WHERE id NOT IN (SELECT id
+  FROM sports_audit ORDER BY id DESC LIMIT 200)`, and this specific MariaDB version rejects `LIMIT`
+  inside an `IN(...)` subquery outright (`pymysql.err.NotSupportedError: 1235`). SQLite allows this
+  unwrapped, which is exactly why it never once showed up locally or in the 96-check test suite,
+  and why every prior investigation always found the real data write had already succeeded before
+  the error — because it had: the audit INSERT succeeded, then this cleanup DELETE crashed
+  immediately after, on every single call. *Fixed:* wrapped the inner `SELECT` in its own derived
+  table (`(SELECT id FROM (SELECT id FROM sports_audit ORDER BY id DESC LIMIT 200) AS keep_ids)`),
+  which both engines accept. Verified live against production: reproduced the exact failure before
+  the fix (HTTP 500, confirmed via `curl -v`), then confirmed success after deploying.
 
 **X24** ✅ ~~**Sports Events leaked across programs**~~ — done (2026-07-13). Creating a new
   program (e.g. "tennis") still showed the original Sports Meet's Sports Events (100m Freestyle,

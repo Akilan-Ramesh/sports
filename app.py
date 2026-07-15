@@ -452,8 +452,12 @@ def linked_participant(u):
 # --------------------------------------------------------------------------
 def log_activity(message):
     db.execute("INSERT INTO sports_audit(ts, message) VALUES(?,?)", (db.now_ts(), message))
+    # The inner SELECT is wrapped in its own derived table (`AS keep_ids`) because
+    # this MariaDB version rejects a LIMIT inside an IN(...) subquery outright
+    # (error 1235) - SQLite allows it unwrapped, which is why this only ever
+    # broke in production and never showed up in local dev or the test suite.
     db.execute("DELETE FROM sports_audit WHERE id NOT IN "
-               "(SELECT id FROM sports_audit ORDER BY id DESC LIMIT 200)")
+               "(SELECT id FROM (SELECT id FROM sports_audit ORDER BY id DESC LIMIT 200) AS keep_ids)")
 
 
 def audit_stamp(table, row_id, created=False, actor=None):
