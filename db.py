@@ -32,7 +32,7 @@ _MY_PASS = os.environ.get("SPORTS_MYSQL_PASSWORD", "")
 _MY_DB   = os.environ.get("SPORTS_MYSQL_DB", "")
 _MY_PORT = int(os.environ.get("SPORTS_MYSQL_PORT", "3306"))
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 # Tables that carry a created/modified audit trail (who + when).
 AUDIT_TABLES = ["sports_teams", "sports_admins", "sports_sport_categories", "sports_sports",
@@ -221,10 +221,14 @@ CREATE TABLE IF NOT EXISTS sports_sport_categories (
     sample INTEGER NOT NULL DEFAULT 0
 );
 -- Master catalogue: the sports_sports we plan to organise (category + name).
+-- `name` is intentionally NOT unique here on its own - the same sport name is
+-- allowed in different programs (program_id, added below); uniqueness within
+-- a program is enforced by the sports_sports_name_program index (see
+-- _migrate_sport_name_scope) plus the app-level check in _sport_form().
 CREATE TABLE IF NOT EXISTS sports_sports (
     id          TEXT PRIMARY KEY,
     category_id TEXT,
-    name        TEXT UNIQUE NOT NULL,
+    name        TEXT NOT NULL,
     archived    INTEGER NOT NULL DEFAULT 0,
     created_by  TEXT,
     created_at  INTEGER,
@@ -476,6 +480,7 @@ def _migrate():
                 execute("ALTER TABLE {} ADD COLUMN {} {}".format(table, col, decl))
     _migrate_account_split()
     _migrate_program_split()
+    _migrate_sport_name_scope()
     set_setting("schema_version", SCHEMA_VERSION)
 
 
@@ -631,6 +636,48 @@ def _migrate_program_split():
     )
     for table in ("sports_sport_categories", "sports_sports", "sports_teams", "sports_announcements"):
         execute("UPDATE {} SET program_id='default' WHERE program_id IS NULL".format(table))
+
+
+def _migrate_sport_name_scope():
+    """v9 -> v10: sports_sports.name carried a single-column UNIQUE constraint from
+    before multi-program support existed, so the same sport name couldn't be used
+    in two different programs even though sport_categories/teams already allowed
+    it. Drop that constraint and replace it with a composite (name, program_id)
+    unique index. Idempotent on both engines."""
+    if _IS_MYSQL:
+        by_index = {}
+        for r in query("SHOW INDEX FROM sports_sports"):
+            by_index.setdefault(r["Key_name"], []).append(r["Column_name"])
+        for idx_name, cols in by_index.items():
+            if idx_name != "PRIMARY" and cols == ["name"]:
+                execute("ALTER TABLE sports_sports DROP INDEX `{}`".format(idx_name))
+        if "sports_sports_name_program" not in by_index:
+            execute("CREATE UNIQUE INDEX sports_sports_name_program ON sports_sports(name, program_id)")
+    else:
+        has_bad_constraint = False
+        for idx in query("PRAGMA index_list(sports_sports)"):
+            if idx["unique"] and idx["name"].startswith("sqlite_autoindex"):
+                cols = query("PRAGMA index_info({})".format(idx["name"]))
+                if [c["name"] for c in cols] == ["name"]:
+                    has_bad_constraint = True
+        if has_bad_constraint:
+            execute(
+                "CREATE TABLE sports_sports_new ("
+                "id TEXT PRIMARY KEY, category_id TEXT, name TEXT NOT NULL, "
+                "archived INTEGER NOT NULL DEFAULT 0, created_by TEXT, created_at INTEGER, "
+                "modified_by TEXT, modified_at INTEGER, sample INTEGER NOT NULL DEFAULT 0, "
+                "program_id TEXT)"
+            )
+            execute(
+                "INSERT INTO sports_sports_new SELECT id, category_id, name, archived, "
+                "created_by, created_at, modified_by, modified_at, sample, program_id "
+                "FROM sports_sports"
+            )
+            execute("DROP TABLE sports_sports")
+            execute("ALTER TABLE sports_sports_new RENAME TO sports_sports")
+        existing_idx = {i["name"] for i in query("PRAGMA index_list(sports_sports)")}
+        if "sports_sports_name_program" not in existing_idx:
+            execute("CREATE UNIQUE INDEX sports_sports_name_program ON sports_sports(name, program_id)")
 
 
 def next_id(table, prefix, pad=3):

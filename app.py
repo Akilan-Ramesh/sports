@@ -1698,8 +1698,11 @@ def _sport_form(sid):
         errors = []
         if not name:
             errors.append("Sport name is required.")
-        if db.query_one("SELECT id FROM sports_sports WHERE name=? AND id<>?", (name, s["id"] if s else "")):
-            errors.append("A sport named '{}' already exists. Names must be unique.".format(name))
+        pid = (current_program() or {}).get("id")
+        if db.query_one("SELECT id FROM sports_sports WHERE name=? AND id<>? AND program_id=?",
+                        (name, s["id"] if s else "", pid)):
+            errors.append("A sport named '{}' already exists in this program. Names must be "
+                          "unique within a program.".format(name))
         if errors:
             for e in errors:
                 flash(e, "danger")
@@ -2863,16 +2866,18 @@ def admin_sport_categories():
         action = request.form.get("action")
         if action == "add":
             name = (request.form.get("name") or "").strip()
+            _pid = (current_program() or {}).get("id")
             if not name:
                 flash("Category name is required.", "danger")
-            elif db.query_one("SELECT 1 FROM sports_sport_categories WHERE name=?", (name,)):
-                flash("A category named '{}' already exists. Names must be unique.".format(name), "danger")
+            elif db.query_one("SELECT 1 FROM sports_sport_categories WHERE name=? AND program_id=?",
+                              (name, _pid)):
+                flash("A category named '{}' already exists in this program. Names must be "
+                      "unique within a program.".format(name), "danger")
             else:
                 sid = _slugify(name)
                 if not sid or db.query_one("SELECT 1 FROM sports_sport_categories WHERE id=?", (sid,)):
                     sid = db.next_id("sports_sport_categories", "sc")
                 nxt = (db.query_one("SELECT MAX(sort) AS m FROM sports_sport_categories")["m"] or 0) + 1
-                _pid = (current_program() or {}).get("id")
                 db.execute("INSERT INTO sports_sport_categories(id, name, sort, program_id, sample) VALUES(?,?,?,?,0)",
                            (sid, name, nxt, _pid))
                 audit_stamp("sports_sport_categories", sid, created=True)

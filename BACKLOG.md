@@ -349,6 +349,31 @@ A living snapshot of what's built and what's next. Items are grouped by priority
   unassigned/no-team), and `age_category` on all 114 Sports Events. Verified before/after — the
   "tennis" program's 6 participants (a separate program) were confirmed untouched.
 
+**X29** ✅ ~~**Sport name uniqueness enforced globally instead of per-program**~~ — done
+  (2026-07-17). The same sport name (e.g. "Chess") couldn't be used in two different programs, even
+  though `sport_categories`/`teams` already allowed name reuse across programs — reported live via
+  a genuine `sqlite3.IntegrityError: UNIQUE constraint failed: sports_sports.name` (same error class
+  on MySQL). Root cause was a **schema-level** constraint, not just an app-level check:
+  `sports_sports.name` had a single-column `UNIQUE NOT NULL` predating multi-program support
+  (`program_id` was added later via an additive migration, but the old constraint was never
+  updated). Fixing only the app-level duplicate-check query (also done, `_sport_form()` and
+  `admin_sport_categories()`'s "add" action now scope by `program_id`) wasn't sufficient on its
+  own - the database itself still rejected it.
+  *Migration (`db.py` `_migrate_sport_name_scope`, SCHEMA_VERSION 9→10):* drops the old
+  single-column constraint and replaces it with a composite `(name, program_id)` unique index, on
+  both engines - MySQL via `SHOW INDEX` detection + `DROP INDEX`, SQLite via the standard
+  create-new-table/copy-data/drop-old/rename dance (SQLite can't drop a column-level `UNIQUE`
+  directly). Idempotent, runs automatically on every app startup via `init_db()`.
+  Verified end-to-end locally: reproduced the exact failure on the *existing* (pre-migration)
+  local database, restarted (triggering the migration), then confirmed the same sport name now
+  succeeds in a second program while still being correctly blocked as a duplicate within the same
+  program. **Not yet deployed to production** - the production database still has the old
+  constraint and needs this migration to run there too.
+
+**X30** `[UX]` **Rename "Users & Roles" to "Players"** — nav label + page title (sidebar,
+  mobile-strip Admin group, `templates/users.html`'s `<h1>`, `<title>` block) — currently reads
+  "🔑 Users & Roles" throughout. — S
+
 ---
 
 ## 🟢 Later — longer-term / nice-to-have
@@ -388,5 +413,6 @@ script the MySQL equivalent before deploying.
 | DB-02 | `users` VIEW created from `admins` UNION `participants` | v7 | ✅ Done | ⏳ Pending |
 | DB-03 | `programs` table; per-program scoping columns added | v8 | ✅ Done | ⏳ Pending |
 | DB-04 | All tables, views, and named indexes prefixed with `sports_` (e.g. `participants` → `sports_participants`, `ix_results_sac` → `sports_ix_results_sac`); `users` VIEW → `sports_users`; old unprefixed tables/indexes dropped from local DB | v9 | ✅ Done | ✅ Ready — `init_db()` auto-creates all tables with prefix when `SPORTS_DB_ENGINE=mysql` |
+| DB-05 | `sports_sports.name`'s single-column `UNIQUE` constraint (predated multi-program support) dropped; replaced with a composite `(name, program_id)` unique index, via `_migrate_sport_name_scope()` (X29) | v10 | ✅ Done | ⏳ Pending — deploy + restart will auto-run the migration on `init_db()` |
 
-*Last updated: 2026-07-13. Re-tier items freely as priorities change.*
+*Last updated: 2026-07-17. Re-tier items freely as priorities change.*
