@@ -20,6 +20,19 @@ TEAMS = [
     {"id": "titans", "name": "Titans", "colour": "#9333ea"},
 ]
 
+# Age bands for SAMPLE data only (demo logins, sample participants/events) -
+# the real product ships with domain.DEFAULT_CATEGORIES empty; every real
+# program defines its own age categories from scratch.
+SAMPLE_CATEGORIES = [
+    {"id": "U9", "name": "Under 9", "min_age": 0, "max_age": 8},
+    {"id": "U13", "name": "Under 13", "min_age": 9, "max_age": 12},
+    {"id": "U18", "name": "Under 18", "min_age": 13, "max_age": 17},
+    {"id": "U30", "name": "Under 30", "min_age": 18, "max_age": 29},
+    {"id": "U50", "name": "Under 50", "min_age": 30, "max_age": 49},
+    {"id": "U70", "name": "Under 70", "min_age": 50, "max_age": 69},
+    {"id": "A70", "name": "Above 70", "min_age": 70, "max_age": 200},
+]
+
 ROLE_PASSWORDS = {"captain": "Captain@2026"}
 
 # Temporary convenience: every seeded account uses this single login password.
@@ -154,7 +167,7 @@ def ensure_seed():
         db.set_setting("event_name", DEFAULT_PROGRAM_NAME)
         db.set_setting("points", domain.DEFAULT_POINTS)
         db.set_setting("count_in_progress", False)
-        db.set_setting("categories_" + DEFAULT_PROGRAM_ID, domain.DEFAULT_CATEGORIES)
+        db.set_setting("categories_" + DEFAULT_PROGRAM_ID, SAMPLE_CATEGORIES)
         db.set_setting("sender_email", "")
     for role, pw in ROLE_PASSWORDS.items():
         if db.get_setting("role_pw_" + role) is None:
@@ -230,7 +243,7 @@ def ensure_seed():
     # the roster ids after whatever exists and guard on the roster, not the count.)
     created_pids = []
     if not db.query_one('SELECT 1 FROM sports_participants WHERE sample=1 AND "user" IS NULL'):
-        cats = domain.DEFAULT_CATEGORIES
+        cats = SAMPLE_CATEGORIES
         pid_n = int(db.next_id("sports_participants", "R")[1:])
         used = set()
         for t in TEAMS:
@@ -295,7 +308,7 @@ def ensure_seed():
     # Meaningful usernames like "u18_male" / "a70_female" (password Demo@123),
     # each linked to a participant in that exact age + gender, on a real team.
     if not db.query_one("SELECT 1 FROM sports_users WHERE username='u18_male'"):
-        cats = domain.DEFAULT_CATEGORIES
+        cats = SAMPLE_CATEGORIES
         team_ids = [t["id"] for t in TEAMS]
         ti = 0
         for c in cats:

@@ -37,15 +37,9 @@ def is_staff(user):
 
 
 # --- age categories --------------------------------------------------------
-DEFAULT_CATEGORIES = [
-    {"id": "U9", "name": "Under 9", "min_age": 0, "max_age": 8},
-    {"id": "U13", "name": "Under 13", "min_age": 9, "max_age": 12},
-    {"id": "U18", "name": "Under 18", "min_age": 13, "max_age": 17},
-    {"id": "U30", "name": "Under 30", "min_age": 18, "max_age": 29},
-    {"id": "U50", "name": "Under 50", "min_age": 30, "max_age": 49},
-    {"id": "U70", "name": "Under 70", "min_age": 50, "max_age": 69},
-    {"id": "A70", "name": "Above 70", "min_age": 70, "max_age": 200},
-]
+# Intentionally empty: the system ships with no built-in age bands - each
+# program's admin defines their own from scratch (Admin -> Age Categories).
+DEFAULT_CATEGORIES = []
 
 DIVISIONS = ["Male", "Female"]   # shown in the UI as "Gender"
 

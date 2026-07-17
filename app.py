@@ -3621,7 +3621,7 @@ def admin_reset():
             _wipe_all(u)
             log_activity("Admin wiped ALL data (admin logins kept)")
             flash("Everything wiped — participants, teams, sports, results, announcements and "
-                  "age categories (reset to defaults). Only admin logins were kept.", "warning")
+                  "age categories (cleared - define your own again). Only admin logins were kept.", "warning")
         elif action == "reseed":
             import seed
             seed.ensure_seed()
@@ -3659,15 +3659,15 @@ def _delete_sample(current):
 
 def _wipe_all(current):
     """Full factory reset: remove EVERY participant/event/team/category/result —
-    keep only admin logins. Age categories reset to the default set."""
+    keep only admin logins. Age categories cleared out entirely (no built-in
+    defaults) - the admin defines their own from scratch."""
     for t in ("sports_signups", "sports_results", "sports_score_votes", "sports_participants", "sports_sport_age_categories",
               "sports_sports", "sports_announcements", "sports_notifications", "sports_audit", "sports_event_lineups",
               "sports_teams", "sports_sport_categories"):
         db.execute("DELETE FROM {}".format(t))
-    # Programs themselves survive a wipe - reset every program's age categories
-    # (not just the legacy global key) back to the default set.
+    # Programs themselves survive a wipe - clear every program's age categories
+    # (not just the legacy global key), not just the currently active one.
     db.execute('DELETE FROM sports_settings WHERE "key"=? OR "key" LIKE ?', ("categories", "categories_%"))
-    db.set_setting("categories", domain.DEFAULT_CATEGORIES)
 
 
 def _slugify(text):

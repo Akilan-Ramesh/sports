@@ -321,6 +321,34 @@ A living snapshot of what's built and what's next. Items are grouped by priority
   through `sports_teams`/`sports_sports` to the current program. `_wipe_all()` and `seed.py`'s
   initial seed updated to match the new per-program key convention.
 
+**X27** `[Bug]` **Admin dashboard ("Overview") stat tiles leak across programs** — S
+
+  Same class of bug as X24/X26, not yet fixed: `admin_home()` (`app.py`) computes every stat tile —
+  Teams, Sport Categories, Sports, Sports Events, Participants, Users, Announcements, Sample-data
+  count — via plain `db.count("sports_teams")`-style calls with no `program_id` filter at all. A
+  brand-new, genuinely empty program's Overview page still shows the total counts across *every*
+  program, not zero — e.g. participants, sports, volunteers, and unassigned players all show
+  numbers from other programs instead of reflecting the current one. Needs the same fix pattern as
+  X24/X26: scope each count to `current_program()`, joining through `program_id` where the table
+  has it directly (teams/sports/sport_categories/announcements) and through the sport/team FK where
+  it doesn't (sports_sport_age_categories, sports_participants — participants still have no direct
+  program link, only via team, same gap noted in X26).
+
+**X28** ✅ ~~**Remove built-in default age categories**~~ — done (2026-07-17). `domain.DEFAULT_CATEGORIES`
+  (Under 9 / Under 13 / Under 18 / Under 30 / Under 50 / Under 70 / Above 70) was the fallback used
+  whenever a program had no age categories configured — meaning every new program silently started
+  pre-loaded with these bands instead of genuinely empty. Changed `DEFAULT_CATEGORIES` to `[]`: new
+  programs now start with zero age categories: the admin defines their own from scratch via Admin →
+  Age Categories. Sample/demo data generation (`seed.py`, S14's per-category demo logins) needed
+  its own realistic bands to keep working, so those seven bands were moved to a new
+  `seed.py`-local `SAMPLE_CATEGORIES` constant, used only for `sample=1` demo content — separate
+  from the real product default.
+  Also cleared the *existing, live* built-in categories from the production "Community Sports
+  Meet 2026" program at the user's explicit request (confirmed scope precisely first): the
+  `categories` settings row, `category` on 99 participants (48 on default-program teams + 51
+  unassigned/no-team), and `age_category` on all 114 Sports Events. Verified before/after — the
+  "tennis" program's 6 participants (a separate program) were confirmed untouched.
+
 ---
 
 ## 🟢 Later — longer-term / nice-to-have
