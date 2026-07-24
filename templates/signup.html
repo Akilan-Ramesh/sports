@@ -28,7 +28,7 @@
       {% for p in people %}
       <option value="{{ p.id }}" data-name="{{ p.name|lower }}" data-team="{{ p.team or '' }}"
               data-div="{{ p.division }}" data-cat="{{ p.category or '' }}"
-              {{ 'selected' if selected and selected.id==p.id }}>{{ p.name }} ({{ p.division }}, {{ p.category or '—' }})</option>
+              {{ 'selected' if selected and selected.id==p.id }}>{{ p.name }} ({{ p.division }}, {{ cat_name(p.category) if p.category else '—' }})</option>
       {% endfor %}
     </select>
   </div>

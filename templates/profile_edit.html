@@ -22,7 +22,7 @@
       <input type="text" value="{{ p.birth_year or '—' }}" disabled>
       <span class="help">
         Age category calculated automatically{% if p.age is not none %} (currently {{ p.age }}){% endif %}.
-        Category: <strong>{{ p.category or '—' }}</strong>
+        Category: <strong>{{ cat_name(p.category) if p.category else '—' }}</strong>
       </span>
       <p style="margin:.3rem 0 0"><strong>{{ captain_contact }}</strong></p>
     </div>

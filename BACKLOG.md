@@ -4,7 +4,7 @@ A living snapshot of what's built and what's next. Items are grouped by priority
 (**Now / Next / Later**) and tagged by type and rough size.
 
 **Tags:** `[Feat]` feature · `[Bug]` defect · `[Debt]` tech debt/refactor ·
-`[Sec/Ops]` security/deployment · `[UX]` polish
+`[Sec/Ops]` security/deployment · `[UX]` polish · `[Discuss]` open topic, not yet scoped
 **Size:** S (hours) · M (a day or two) · L (multi-day)
 
 ---
@@ -186,22 +186,128 @@ A living snapshot of what's built and what's next. Items are grouped by priority
 
 **X17** ✅ ~~**About page**~~ — done (`/about`, public, shows app name/features/contact/schema version).
 
-**X25** `[Bug/Feat]` **Age calculation — configurable reference date + test coverage** — S/M
+**X25** ✅ ~~**Age calculation — configurable reference date + test coverage**~~ — done
+  (2026-07-18). `domain.age_from_birth_year()`/`current_year()`/`category_for_birth_year()` now
+  take an explicit `ref_date` param (default `None` = today, unchanged behaviour when unset). New
+  "Age calculation start date" field on the Settings page (`db.set_setting("age_ref_date", ...)`,
+  `templates/settings.html`), read via a new `domain.age_ref_date(cfg)` helper and threaded through
+  every call site in `app.py` (registration, participant edit/new, profile, team selection,
+  CSV import, category recompute) via a small `_age_ref()` app-level helper. Added 11 new
+  domain-level self-tests (`tests/test_app.py`) covering the no-ref-date regression case, an
+  explicit ref date overriding `date.today()`, category boundary edges (inclusive max/min-age,
+  single-year bands), and missing/invalid birth years. Suite now 113/113.
 
-  *Problem:* `domain.age_from_birth_year()` computes age as `date.today().year - birth_year` —
-  purely calendar-year-based, with no configurable reference date. Age category (and eligibility)
-  silently shifts on Jan 1 every year regardless of when the actual program/meet runs, and there's
-  no way to set a fixed "age as of" cutoff date the way most youth sports federations require
-  (e.g. age as of the program's start date, not whenever someone happens to check). No test
-  coverage exists for this logic at all (`age_from_birth_year`/`category_for_birth_year`/
-  `derive_category` in `domain.py` — zero references in `tests/test_app.py`).
+**X22** ✅ ~~**Remove the "Reset PW" button**~~ — done (2026-07-18). Deleted the one-click
+  reset-to-default `<form>` (`templates/users.html`); the route it posted to (`user_reset_default`)
+  was kept since it's also used by the participant-edit page's separate "Reset password" button.
+  "Set PW" (lets an admin set a specific password) is untouched. New regression checks confirm the
+  button is gone and "Set PW" still works.
 
-  *Solution:* Add an "Age calculation start date" field to the Settings page (`admin_settings()` /
-  `templates/settings.html`) stored via `db.set_setting()`, used as the reference date in place of
-  `date.today()` when computing age/category (`age_from_birth_year`, `category_for_birth_year`).
-  Add self-tests covering: birthday-adjacent edge cases (day before/after the cutoff date crossing
-  a category boundary), leap-year birth years, missing/invalid birth year input, and category
-  boundary values (exact `min_age`/`max_age` matches).
+**X27** `[Bug]` **Admin dashboard ("Overview") stat tiles leak across programs** — S
+
+  Same class of bug as X24/X26, not yet fixed: `admin_home()` (`app.py`) computes every stat tile —
+  Teams, Sport Categories, Sports, Sports Events, Participants, Users, Announcements, Sample-data
+  count — via plain `db.count("sports_teams")`-style calls with no `program_id` filter at all. A
+  brand-new, genuinely empty program's Overview page still shows the total counts across *every*
+  program, not zero — e.g. participants, sports, volunteers, and unassigned players all show
+  numbers from other programs instead of reflecting the current one. Needs the same fix pattern as
+  X24/X26: scope each count to `current_program()`, joining through `program_id` where the table
+  has it directly (teams/sports/sport_categories/announcements) and through the sport/team FK where
+  it doesn't (sports_sport_age_categories, sports_participants — participants still have no direct
+  program link, only via team, same gap noted in X26).
+
+**X30** ✅ ~~**Rename "Users & Roles" to "Players"**~~ — done (2026-07-18). Renamed at all 5 sites
+  (`admin_home.html` dashboard card, `base.html` sidebar + mobile pill-strip, `users.html`'s
+  `<title>`/`<h1>`); the `<th>Roles</th>` table column header was intentionally left as-is.
+
+**X31** `[Discuss]` **House numbers and login** — to be discussed; not yet scoped.
+
+**X32** ✅ ~~**Constrain event dates to within the program's date range**~~ — done (2026-07-18).
+  `sac_edit()`'s POST handler now validates a submitted event date against `current_program()`'s
+  `start_date`/`end_date` when both are set (flash + re-render, naming the program's actual range);
+  programs with no dates configured are unconstrained, as before. `sac_new()` doesn't collect a
+  date at all (only `sac_edit`/Schedule does), so no change was needed there. New regression checks
+  cover both an out-of-range rejection and an in-range save.
+
+**X33** ✅ ~~**Dashboard "Your score" panel: raw team/category leak when unassigned**~~ — done
+  (2026-07-18). Team display: `dashboard()` now shows the team-name/team-score pair only when the
+  player has a team, or shows "—" (keeping the 0pt score) when other participants in the current
+  program have a team but this player doesn't; hidden entirely when nobody in the program has a
+  team yet. Category display: wired a `cat_name()` helper (`domain.category_name`) into `dashboard()`
+  and 8 other routes/templates that were printing the raw, auto-slugified category id
+  (`participants_list`, `profile_edit`, `results_list`, `volunteers`, `team_selection`, `signup`,
+  `approvals`, `users_list` — plus a 9th site found during implementation, `users.html`'s Age
+  Category column). `participants.html`'s main table already resolved names correctly and was left
+  untouched.
+
+**X34** `[Bug]` **Results/scores/standings aren't scoped to the current program** — M
+
+  *Problem:* `sports_results` has no `program_id` of its own — it's only reachable indirectly via
+  `sac_id → sports_sport_age_categories → sports_sports.program_id`, and Sports Events themselves
+  are already program-scoped (X24). But most result-aggregating queries filter only by
+  `participant`/`team`, never joining that chain through to `program_id`, so a participant/team's
+  results from *every* program they've ever been part of get mixed together:
+  - `dashboard()`'s player score + team score (`app.py:951-965`) — a player's "Your score" panel
+    sums every result row for `r.participant=?`/`p.team=?` with no program filter, unlike the SAC
+    lookups elsewhere in the same function which already go through `load_sacs()` (program-scoped).
+  - `team_standings()` (`app.py:387-402`) — iterates the current program's `teams()` correctly, but
+    sums `sports_results` per team/participant with no join back to the SAC's `program_id`, so a
+    team's rank/points total on this program's standings can include points scored under a
+    different program.
+  - `results_list()`/`_participant_results()` (`app.py:2545-2667`) — `team_results` (2592-2599),
+    `_participant_results()` (2545-2553), the `counts` map (2562), and the `named` dropdown
+    (2651-2654) are all unscoped the same way. (The "Overall" `completed`/`sacs` cascade in the same
+    route is fine — it's built from `load_sacs()`, which already filters by `program_id`.)
+  - `result_detail()` (`app.py:2672`+) and `locked_sport_ids()` (`app.py:405-411`) — same class of
+    gap, need to be checked/fixed alongside the above.
+
+  *Solution:* Every query that aggregates or lists `sports_results` by participant or team should
+  join through to the SAC and filter on `sac.sport_id`'s `program_id = current_program()`'s id
+  (the same join pattern `_SAC_SELECT`/`load_sacs()` already uses), so a player's score, a team's
+  standings, and the results list only ever reflect results recorded within the active program —
+  matching how Sports Events (X24), Age Categories (X26), and Teams are already scoped. Also worth
+  a pass to confirm CSV/PDF result exports (once X01 lands) and any admin "reset/clear" tooling
+  scope by program the same way.
+
+**X35** `[UX]` **Remove the captain option from self-registration** — S
+
+  *Problem:* `register()` (`app.py:717-806`) and `templates/register.html:30-31` let a new account
+  pick a role from `domain.SELF_REGISTER_ROLES` (`["player", "captain"]`) via a `<select
+  name="role">` — choosing "Captain" reveals a team dropdown + a shared "common role password"
+  field (`register.html:65-68`, `app.py:766-771`) gated on a `role_pw_captain` admin-set setting.
+  This means anyone who knows the shared captain password can self-grant the captain role for any
+  team at signup — a separate, parallel path to becoming a captain that bypasses admin review
+  entirely.
+
+  *Solution:* Self-registration should only ever create a **player** account — drop the role
+  `<select>` (and its `teambox`/`rolepwbox` JS toggle, `register.html:94-98`) entirely, along with
+  `domain.SELF_REGISTER_ROLES` and the `role_pw_captain` setting/gate in `register()`. Captain is
+  granted the way it already works for every other role change: admin edits the player's account
+  in Users & Roles and checks the "Captain" role checkbox (`templates/user_form.html:32/72`,
+  already live — this ticket doesn't add that mechanism, just removes the redundant
+  self-service one at signup).
+
+**X36** `[Feat]` **Log in via House + Number instead of Username** — M
+
+  *Problem:* `login()` (`app.py:681-713`) takes a free-text `username` (or email) + password.
+  Every account already has a `house` (`domain.HOUSES` = VA/VB/VC/A/B/C/D, or `domain.ADMIN_HOUSE`
+  = "Admin" for admin-created admin accounts, per `admin_user_new`/`app.py:3164`) and a 3-digit
+  `number` unique within that house for players (`register()`/`app.py:761-765` enforces
+  `(house, number)` uniqueness at signup) — the same fields already used to build an account during
+  registration. Usernames are an extra thing to remember on top of information the player already
+  knows about their own registration.
+
+  *Solution:* Replace the login form's username field with the same house/number picker pattern
+  used at registration: a `house` dropdown (the 7 house options + "Admin"), a 3-digit `number`
+  input (hidden/skipped when "Admin" is picked, since admin accounts have no number), then — once
+  house+number resolves to a match — a dropdown of the matching account name(s) at that
+  house+number (e.g. "VA-108") for the player to confirm/select, followed by the existing password
+  field. Since `(house, number)` is already enforced unique per active participant, this will
+  almost always resolve to exactly one name; the dropdown mainly handles the "Admin" case (multiple
+  admin accounts share `house="Admin"` with no number) and any edge cases (e.g. an archived
+  duplicate). *Open question to resolve during implementation:* whether admin accounts keep a
+  plain username/password fallback (since "Admin" + a name-dropdown is a bigger UX change for a
+  small set of accounts) or go through the same house-based flow as everyone else.
 
 ---
 
@@ -259,9 +365,6 @@ A living snapshot of what's built and what's next. Items are grouped by priority
   with Name (free-text search, not a dropdown), Age Category, Role, Team, and Status filters;
   Age Category column added right after Name (looked up from `sports_participants` per-user, since
   the `sports_users` VIEW doesn't expose it — no schema change needed).
-**X22** `[UX]` **Remove the "Reset PW" button** from the Users &amp; Roles page — the one-click
-  destructive reset-to-default action (next to "Set PW", which lets an admin set a specific
-  password directly) is redundant/risky; keep "Set PW" only. — S
 
 **X23** ✅ ~~**"Internal Server Error" shown after every create/update**~~ — actual root cause
   found and fixed (2026-07-16), after several earlier rounds that fixed real but secondary issues
@@ -321,19 +424,6 @@ A living snapshot of what's built and what's next. Items are grouped by priority
   through `sports_teams`/`sports_sports` to the current program. `_wipe_all()` and `seed.py`'s
   initial seed updated to match the new per-program key convention.
 
-**X27** `[Bug]` **Admin dashboard ("Overview") stat tiles leak across programs** — S
-
-  Same class of bug as X24/X26, not yet fixed: `admin_home()` (`app.py`) computes every stat tile —
-  Teams, Sport Categories, Sports, Sports Events, Participants, Users, Announcements, Sample-data
-  count — via plain `db.count("sports_teams")`-style calls with no `program_id` filter at all. A
-  brand-new, genuinely empty program's Overview page still shows the total counts across *every*
-  program, not zero — e.g. participants, sports, volunteers, and unassigned players all show
-  numbers from other programs instead of reflecting the current one. Needs the same fix pattern as
-  X24/X26: scope each count to `current_program()`, joining through `program_id` where the table
-  has it directly (teams/sports/sport_categories/announcements) and through the sport/team FK where
-  it doesn't (sports_sport_age_categories, sports_participants — participants still have no direct
-  program link, only via team, same gap noted in X26).
-
 **X28** ✅ ~~**Remove built-in default age categories**~~ — done (2026-07-17). `domain.DEFAULT_CATEGORIES`
   (Under 9 / Under 13 / Under 18 / Under 30 / Under 50 / Under 70 / Above 70) was the fallback used
   whenever a program had no age categories configured — meaning every new program silently started
@@ -369,10 +459,6 @@ A living snapshot of what's built and what's next. Items are grouped by priority
   succeeds in a second program while still being correctly blocked as a duplicate within the same
   program. **Not yet deployed to production** - the production database still has the old
   constraint and needs this migration to run there too.
-
-**X30** `[UX]` **Rename "Users & Roles" to "Players"** — nav label + page title (sidebar,
-  mobile-strip Admin group, `templates/users.html`'s `<h1>`, `<title>` block) — currently reads
-  "🔑 Users & Roles" throughout. — S
 
 ---
 
@@ -415,4 +501,4 @@ script the MySQL equivalent before deploying.
 | DB-04 | All tables, views, and named indexes prefixed with `sports_` (e.g. `participants` → `sports_participants`, `ix_results_sac` → `sports_ix_results_sac`); `users` VIEW → `sports_users`; old unprefixed tables/indexes dropped from local DB | v9 | ✅ Done | ✅ Ready — `init_db()` auto-creates all tables with prefix when `SPORTS_DB_ENGINE=mysql` |
 | DB-05 | `sports_sports.name`'s single-column `UNIQUE` constraint (predated multi-program support) dropped; replaced with a composite `(name, program_id)` unique index, via `_migrate_sport_name_scope()` (X29) | v10 | ✅ Done | ⏳ Pending — deploy + restart will auto-run the migration on `init_db()` |
 
-*Last updated: 2026-07-17. Re-tier items freely as priorities change.*
+*Last updated: 2026-07-18. Re-tier items freely as priorities change.*

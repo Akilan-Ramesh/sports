@@ -155,16 +155,29 @@ def get_config(program_id=None):
         "count_in_progress": db.get_setting("count_in_progress", False),
         "categories": db.get_setting(cat_key, DEFAULT_CATEGORIES),
         "sender_email": db.get_setting("sender_email", ""),
+        "age_ref_date": db.get_setting("age_ref_date", ""),
     }
 
 
-def current_year():
-    return date.today().year
-
-
-def age_from_birth_year(birth_year):
+def age_ref_date(cfg=None):
+    """The configured 'age as of' cutoff date (a date object), or None if unset/
+    invalid - callers should fall back to date.today() when this is None."""
+    s = (cfg or get_config()).get("age_ref_date")
+    if not s:
+        return None
     try:
-        return current_year() - int(birth_year)
+        return date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def current_year(ref_date=None):
+    return (ref_date or date.today()).year
+
+
+def age_from_birth_year(birth_year, ref_date=None):
+    try:
+        return current_year(ref_date) - int(birth_year)
     except (TypeError, ValueError):
         return None
 
@@ -180,8 +193,8 @@ def derive_category(age, categories):
     return None
 
 
-def category_for_birth_year(birth_year, categories):
-    return derive_category(age_from_birth_year(birth_year), categories)
+def category_for_birth_year(birth_year, categories, ref_date=None):
+    return derive_category(age_from_birth_year(birth_year, ref_date), categories)
 
 
 def category_name(cat_id, categories):

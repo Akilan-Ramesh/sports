@@ -66,7 +66,7 @@
       <h2 style="margin:0">{{ pr.p.name }}</h2>
       <span class="score-big" style="font-size:1.6rem">{{ pr.score }} pts</span>
     </div>
-    <p class="muted">{{ pr.team_name }} · {{ pr.p.division }} · {{ pr.p.category or '—' }}</p>
+    <p class="muted">{{ pr.team_name }} · {{ pr.p.division }} · {{ cat_name(pr.p.category) if pr.p.category else '—' }}</p>
     {% if pr.rows %}
     <div class="table-wrap">
     <table>

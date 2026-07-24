@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Users & Roles{% endblock %}
+{% block title %}Players{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>🔑 Users &amp; Roles</h1>
+  <h1>🔑 Players</h1>
   <a class="btn" href="{{ url_for('user_new') }}">+ Add Account</a>
 </div>
 <p class="muted">A user can hold several roles at once. Grant or revoke a captain/admin role via <strong>Edit</strong>. At least one admin is always kept.</p>
@@ -39,14 +39,13 @@
     <tr>
       <td><code>{{ u.username }}</code></td>
       <td>{{ u.name }}</td>
-      <td>{{ u.category or '—' }}</td>
+      <td>{{ cat_name(u.category) if u.category else '—' }}</td>
       <td>{% for r in u.roles %}<span class="role-chip role-{{ r }}">{{ r }}</span> {% endfor %}</td>
       <td>{{ team_name(u.team) if u.team else '—' }}</td>
       <td>{{ 'Disabled' if u.disabled else 'Active' }}</td>
       <td class="actions">
         <a class="btn-sm btn-ghost" href="{{ url_for('user_edit', uid=u.id) }}">Edit</a>
         <form method="post" action="{{ url_for('user_toggle', uid=u.id) }}"><button class="btn-sm btn-ghost">{{ 'Enable' if u.disabled else 'Disable' }}</button></form>
-        <form method="post" action="{{ url_for('user_reset_default', uid=u.id) }}" onsubmit="return confirm('Reset {{ u.username }} to default password?')"><button class="btn-sm btn-ghost" style="color:var(--danger)">Reset PW</button></form>
         <button class="btn-sm btn-ghost" onclick="document.getElementById('reset-{{ u.id }}').style.display='flex'">Set PW</button>
       </td>
     </tr>

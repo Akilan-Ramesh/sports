@@ -26,6 +26,8 @@ import sqlite3
 import json as _j
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+import domain  # noqa: E402 - pure domain-logic checks are run in-process, no server needed
 
 
 # --------------------------------------------------------------------------
@@ -527,6 +529,81 @@ def run_checks(base, db_path):
     # ---- demo logins across age/gender exist ----
     ck("age/gender demo logins seeded",
        db("SELECT COUNT(*) n FROM sports_users WHERE username IN ('u18_male','a70_female','u9_male')")[0]["n"] == 3)
+
+    # ---- X22: "Reset PW" one-click button removed; "Set PW" flow still works ----
+    code, _, body = admin.req("/admin/users")
+    ck("X22: 'Reset PW' one-click button removed", code == 200 and "Reset PW" not in body, str(code))
+    ck("X22: 'Set PW' still present", "Set PW" in body)
+
+    # ---- X30: "Users & Roles" renamed to "Players" ----
+    ck("X30: Players heading present", "Players" in body)
+    ck("X30: old 'Users & Roles' label gone", "Users & Roles" not in body and "Users &amp; Roles" not in body)
+
+    # ---- X32: Sports Event date constrained to the active program's date range ----
+    dated_pid = "x32testprog"
+    admin.req("/admin/programs/new", {"name": "X32 Range Test", "status": "active",
+                                      "start_date": "2026-01-01", "end_date": "2026-01-31"})
+    prog_row = db("SELECT id FROM sports_programs WHERE name='X32 Range Test' LIMIT 1")
+    if prog_row:
+        dated_pid = prog_row[0]["id"]
+        admin.req("/select-program", {"program_id": dated_pid})
+        admin.req("/admin/sports/new", {"name": "X32 Test Sport", "category_id": ""})
+        sp = db("SELECT id FROM sports_sports WHERE name='X32 Test Sport' AND program_id=?", (dated_pid,))
+        if sp:
+            spid = sp[0]["id"]
+            admin.req("/sac/new", {"sport_id": spid, "age_category": "", "gender": "",
+                                   "event_format": "individual"})
+            sac_row = db("SELECT id FROM sports_sport_age_categories WHERE sport_id=?", (spid,))
+            if sac_row:
+                said = sac_row[0]["id"]
+                out_of_range = "1999-01-01"
+                admin.req("/sac/%s/edit" % said, {
+                    "sport_id": spid, "age_category": "", "gender": "", "date": out_of_range,
+                    "slot": "", "status": "scheduled", "scoring_mode": "placement",
+                    "event_format": "individual", "rounds": "3", "points": "", "location": "",
+                })
+                row = db("SELECT date FROM sports_sport_age_categories WHERE id=?", (said,))[0]
+                ck("X32: out-of-range event date rejected", row["date"] != out_of_range, str(row["date"]))
+                in_range = "2026-01-15"
+                admin.req("/sac/%s/edit" % said, {
+                    "sport_id": spid, "age_category": "", "gender": "", "date": in_range,
+                    "slot": "", "status": "scheduled", "scoring_mode": "placement",
+                    "event_format": "individual", "rounds": "3", "points": "", "location": "",
+                })
+                row = db("SELECT date FROM sports_sport_age_categories WHERE id=?", (said,))[0]
+                ck("X32: in-range event date accepted", row["date"] == in_range, str(row["date"]))
+
+    # ---- X25: configurable age-calculation reference date (pure domain checks) ----
+    from datetime import date as _date
+    cur_year = _date.today().year
+    ck("age_from_birth_year: no ref_date behaves as today (regression)",
+       domain.age_from_birth_year(2000) == cur_year - 2000)
+    ck("age_from_birth_year: explicit ref_date overrides today",
+       domain.age_from_birth_year(2000, _date(2020, 6, 15)) == 20)
+    ck("current_year: explicit ref_date overrides today",
+       domain.current_year(_date(2020, 6, 15)) == 2020)
+    ck("age_from_birth_year: missing birth_year -> None",
+       domain.age_from_birth_year(None) is None)
+    ck("age_from_birth_year: invalid birth_year -> None",
+       domain.age_from_birth_year("not-a-year") is None)
+
+    _bands = [{"id": "u18", "name": "Under 18", "min_age": 0, "max_age": 18},
+              {"id": "a19", "name": "19+", "min_age": 19, "max_age": 150}]
+    ck("derive_category: exact max_age boundary included",
+       domain.derive_category(18, _bands) == "u18")
+    ck("derive_category: exact min_age boundary of next band included",
+       domain.derive_category(19, _bands) == "a19")
+
+    _single = [{"id": "exact10", "name": "Exactly 10", "min_age": 10, "max_age": 10}]
+    ck("derive_category: single-year band matches exactly",
+       domain.derive_category(10, _single) == "exact10")
+    ck("derive_category: single-year band excludes neighbours",
+       domain.derive_category(9, _single) is None and domain.derive_category(11, _single) is None)
+
+    ck("category_for_birth_year: missing birth_year -> None",
+       domain.category_for_birth_year(None, _bands) is None)
+    ck("category_for_birth_year: respects explicit ref_date",
+       domain.category_for_birth_year(2005, _bands, _date(2023, 1, 1)) == "u18")
 
     return R
 

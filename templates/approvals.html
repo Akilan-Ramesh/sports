@@ -42,7 +42,7 @@
   {% for p in roster %}
   <div style="border-bottom:1px solid var(--line);padding:.5rem 0" class="actions">
     <strong>{{ p.name }}</strong> → {{ p.pending_team_name }}
-    <span class="muted">· {{ p.division }} · {{ p.category or '—' }}{% if p.team %} · move from {{ p.team_name }}{% endif %}</span>
+    <span class="muted">· {{ p.division }} · {{ cat_name(p.category) if p.category else '—' }}{% if p.team %} · move from {{ p.team_name }}{% endif %}</span>
     <span style="margin-left:auto"></span>
     <form method="post" action="{{ url_for('roster_decision', pid=p.id, action='approve') }}"><button class="btn-sm btn-ok">Approve</button></form>
     <form method="post" action="{{ url_for('roster_decision', pid=p.id, action='reject') }}"><button class="btn-sm btn-danger">Reject</button></form>

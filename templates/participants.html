@@ -33,7 +33,7 @@
       {% for p in unassigned %}
       <tr data-name="{{ p.name|lower }}" data-gender="{{ p.division or '' }}" data-cat="{{ p.category or '' }}">
         <td data-label="Name">{{ p.name }}</td><td data-label="Gender">{{ p.division }}</td>
-        <td data-label="Age">{{ p.age if p.age is not none else '—' }}</td><td data-label="Category">{{ p.category or '—' }}</td>
+        <td data-label="Age">{{ p.age if p.age is not none else '—' }}</td><td data-label="Category">{{ cat_name(p.category) if p.category else '—' }}</td>
         <td data-label="" class="right actions">
           {% if my_team %}
           <form method="post" action="{{ url_for('participant_assign', pid=p.id) }}">

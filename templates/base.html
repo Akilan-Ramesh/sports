@@ -102,7 +102,7 @@
       <a href="{{ url_for('sports_master') }}" class="{{ 'active' if _ep == 'sports_master' }}">🏆 Sports</a>
       <a href="{{ url_for('sac_list') }}" class="{{ 'active' if _ep in ['sac_list','sac_edit','sac_new'] }}">🎯 Sports Event</a>
       <a href="{{ url_for('team_selection') }}" class="{{ 'active' if _ep == 'team_selection' }}">🧮 Team Selection</a>
-      <a href="{{ url_for('users_list') }}" class="{{ 'active' if _ep in ['users_list','user_form'] }}">👤 Users</a>
+      <a href="{{ url_for('users_list') }}" class="{{ 'active' if _ep in ['users_list','user_form'] }}">👤 Players</a>
       <a href="{{ url_for('admin_announcements') }}" class="{{ 'active' if _ep == 'admin_announcements' }}">📢 Announcements</a>
       <a href="{{ url_for('admin_settings') }}" class="{{ 'active' if _ep == 'admin_settings' }}">⚙️ Settings</a>
       <a href="{{ url_for('admin_data') }}" class="{{ 'active' if _ep == 'admin_data' }}">💾 Import / Backup</a>
@@ -143,7 +143,7 @@
     <a href="{{ url_for('sac_list') }}">🎯 Sports Event</a>
     <a href="{{ url_for('participants_list') }}">👥 Participants</a>
     <a href="{{ url_for('team_selection') }}">🧮 Team Selection</a>
-    <a href="{{ url_for('users_list') }}">👤 Users &amp; Roles</a>
+    <a href="{{ url_for('users_list') }}">👤 Players</a>
     <a href="{{ url_for('admin_announcements') }}">📢 Announcements</a>
     <a href="{{ url_for('admin_settings') }}">⚙️ Settings</a>
     <a href="{{ url_for('admin_data') }}">💾 Import / Backup</a>

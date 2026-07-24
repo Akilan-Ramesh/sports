@@ -34,7 +34,7 @@
         <td>{{ p.name }}{% if p.user_id %} <span class="badge">login</span>{% endif %}</td>
         <td>{{ p.division }}</td>
         <td>{{ p.age if p.age is not none else '—' }}</td>
-        <td>{{ p.category or '—' }}</td>
+        <td>{{ cat_name(p.category) if p.category else '—' }}</td>
         <td>
           <select name="team_{{ p.id }}">
             <option value="" {{ 'selected' if not p.team }}>— Unassigned —</option>

@@ -45,9 +45,11 @@
     <h2>🏅 Your score</h2>
     <div class="score-pair">
       <div><div class="score-big">{{ player_data.score }} pts</div><div class="muted">You</div></div>
+      {% if player_data.team_name %}
       <div><div class="score-big">{{ player_data.team_score }} pts</div><div class="muted">{{ player_data.team_name }}</div></div>
+      {% endif %}
     </div>
-    <p class="muted">{{ player_data.p.division }} · {{ player_data.p.category or '—' }}</p>
+    <p class="muted">{{ player_data.p.division }} · {{ cat_name(player_data.p.category) if player_data.p.category else '—' }}</p>
     {% if player_data.standings %}
     <h3 style="margin:.6rem 0 .3rem;font-size:1rem">🏆 Team standings</h3>
     <div class="table-wrap"><table>

@@ -32,6 +32,15 @@
     <input type="email" name="sender_email" value="{{ cfg.sender_email or '' }}" placeholder="meet@example.com">
   </div>
 
+  <div class="card">
+    <h2>Age calculation</h2>
+    <p class="muted">Age (and therefore age category) is normally calculated as of today, which
+    silently shifts every Jan 1. Set a fixed date here to always calculate age as of that date
+    instead — e.g. the meet's start date. Leave blank to keep using today's date.</p>
+    <label>Age calculation start date</label>
+    <input type="date" name="age_ref_date" value="{{ cfg.age_ref_date or '' }}">
+  </div>
+
   <button class="btn">Save Settings</button>
 </form>
 {% endblock %}

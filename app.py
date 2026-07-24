@@ -215,6 +215,11 @@ def config():
     return g.cfg
 
 
+def _age_ref():
+    """The configured 'age as of' reference date, or None (== today) if unset."""
+    return domain.age_ref_date(config())
+
+
 def current_program():
     if "cur_prog" in g:
         return g.cur_prog
@@ -750,7 +755,7 @@ def register():
         if role == "player":
             try:
                 by = int(birth_year)
-                if by < 1900 or by > domain.current_year():
+                if by < 1900 or by > domain.current_year(_age_ref()):
                     raise ValueError
             except (TypeError, ValueError):
                 errors.append("Enter a valid birth year.")
@@ -774,7 +779,7 @@ def register():
             for e in errors:
                 flash(e, "danger")
             return render_template("register.html", form=form, teams=teams(),
-                                   roles=domain.SELF_REGISTER_ROLES, year=domain.current_year(),
+                                   roles=domain.SELF_REGISTER_ROLES, year=domain.current_year(_age_ref()),
                                    houses=domain.HOUSES, security_questions=domain.SECURITY_QUESTIONS)
 
         uid = db.next_id("sports_users", "U")
@@ -788,7 +793,7 @@ def register():
             "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?,0,0,0)",
             (pid, name, team if role == "captain" else None,
              division if role == "player" else None, by,
-             domain.category_for_birth_year(by, cats) if by else None,
+             domain.category_for_birth_year(by, cats, _age_ref()) if by else None,
              uid, username, security.hash_password(password), db.dumps([role]), email,
              sec_q, hash_answer(sec_a),
              house if role == "player" else None, number if role == "player" else None,
@@ -805,7 +810,7 @@ def register():
         flash("Account created. You can log in now.", "success")
         return redirect(url_for("login"))
     return render_template("register.html", form=form, teams=teams(),
-                           roles=domain.SELF_REGISTER_ROLES, year=domain.current_year(),
+                           roles=domain.SELF_REGISTER_ROLES, year=domain.current_year(_age_ref()),
                            houses=domain.HOUSES, security_questions=domain.SECURITY_QUESTIONS)
 
 
@@ -963,10 +968,22 @@ def dashboard():
                 r2 = db.query_one("SELECT COALESCE(SUM(points),0) AS s FROM sports_results WHERE participant=?",
                                   (p["team"],))["s"]
                 team_score = (r1 or 0) + (r2 or 0)
+            # Team display: real name if assigned; a dash if unassigned but other
+            # players in this program do have teams; hidden entirely (None) if
+            # nobody in the program has a team yet (see X33).
+            team_name_display = None
+            if p.get("team"):
+                team_name_display = domain.team_name(p.get("team"), teams())
+            else:
+                prog = current_program()
+                if prog and db.query_one(
+                        "SELECT 1 FROM sports_participants WHERE archived=0 AND team IN "
+                        "(SELECT id FROM sports_teams WHERE program_id=?)", (prog["id"],)):
+                    team_name_display = "—"
             player_data = {"p": p, "regs": regs, "sports_results": results, "score": score,
                            "team_score": team_score, "team_id": p.get("team"),
                            "standings": team_standings(),
-                           "team_name": domain.team_name(p.get("team"), teams()),
+                           "team_name": team_name_display,
                            "locked_ids": locked_sport_ids(p["id"])}
 
     staff = None
@@ -1034,8 +1051,10 @@ def dashboard():
             "sports_sport_categories": sport_categories(),
             "captain_hub": captain_hub,
         }
+    cats = config()["categories"]
     return render_template("dashboard.html", announcements=announcements,
-                           player_data=player_data, staff=staff)
+                           player_data=player_data, staff=staff,
+                           cat_name=lambda c: domain.category_name(c, cats))
 
 
 def _parse_date(s):
@@ -1087,19 +1106,21 @@ def profile_edit():
         return redirect(url_for("dashboard"))
 
     def _render(p):
-        p["age"] = domain.age_from_birth_year(p.get("birth_year"))
+        p["age"] = domain.age_from_birth_year(p.get("birth_year"), _age_ref())
         acct = db.query_one("SELECT security_question FROM sports_users WHERE id=?", (u["id"],))
         cap_names = [r["name"] for r in db.query(
             "SELECT name FROM sports_users WHERE team=? AND roles LIKE '%captain%' AND disabled=0",
             (p.get("team"),))] if p.get("team") else []
         captain_contact = ("Contact your captain ({})".format(", ".join(cap_names))
                             if cap_names else "Contact your captain or admin")
+        cats = config()["categories"]
         return render_template(
             "profile_edit.html", p=p,
             security_questions=domain.SECURITY_QUESTIONS,
             current_sq=(acct or {}).get("security_question") or "",
             forced=bool(u.get("must_change_pw")),
             captain_contact=captain_contact,
+            cat_name=lambda c: domain.category_name(c, cats),
         )
 
     if request.method == "POST":
@@ -1241,7 +1262,7 @@ def participants_list():
     items = [p for p in rows if matches(p)]
     for p in items:
         p["events"] = signups_by_pid.get(p["id"], [])
-        p["age"] = domain.age_from_birth_year(p.get("birth_year"))
+        p["age"] = domain.age_from_birth_year(p.get("birth_year"), _age_ref())
         p["n_results"] = results_by_pid.get(p["id"], 0)
         p["team_name"] = domain.team_name(p.get("team"), teams()) if p.get("team") else ""
         p["pending_team_name"] = (domain.team_name(p.get("pending_team"), teams())
@@ -1270,6 +1291,7 @@ def participants_list():
         pending_approvals=pending_approvals,
         teams=teams(), categories=cats, events=all_sports(),
         divisions=domain.DIVISIONS, my_team=my_team,
+        cat_name=lambda c: domain.category_name(c, cats),
         filters={"q": q, "team": f_team, "category": f_cat, "division": f_div, "event": f_event})
 
 
@@ -1295,13 +1317,13 @@ def participant_new():
             "division": request.form.get("division"),
             "birth_year": int(by) if by else None,
         }
-        record["category"] = domain.category_for_birth_year(record["birth_year"], cats)
+        record["category"] = domain.category_for_birth_year(record["birth_year"], cats, _age_ref())
         errors = _validate_participant(record, require_team=False if cap_pending else True)
         if errors:
             for e in errors:
                 flash(e, "danger")
             return render_template("participant_form.html", p=record, teams=teams(),
-                                   divisions=domain.DIVISIONS, new=True, year=domain.current_year())
+                                   divisions=domain.DIVISIONS, new=True, year=domain.current_year(_age_ref()))
         pid = db.next_id("sports_participants", "R")
         pend = u.get("team") if cap_pending else None
         db.execute(
@@ -1326,7 +1348,7 @@ def participant_new():
         return redirect(url_for("participants_list"))
     blank = {"team": u.get("team") if (u["is_captain"] and not u["is_admin"]) else ""}
     return render_template("participant_form.html", p=blank, teams=teams(),
-                           divisions=domain.DIVISIONS, new=True, year=domain.current_year())
+                           divisions=domain.DIVISIONS, new=True, year=domain.current_year(_age_ref()))
 
 
 @app.route("/participants/<pid>/edit", methods=["GET", "POST"])
@@ -1346,13 +1368,13 @@ def participant_edit(pid):
             p["team"] = request.form.get("team") or None
         p["division"] = request.form.get("division")
         p["birth_year"] = int(by) if by else None
-        p["category"] = domain.category_for_birth_year(p["birth_year"], cats)
+        p["category"] = domain.category_for_birth_year(p["birth_year"], cats, _age_ref())
         errors = _validate_participant(p, require_team=False)
         if errors:
             for e in errors:
                 flash(e, "danger")
             return render_template("participant_form.html", p=p, teams=teams(),
-                                   divisions=domain.DIVISIONS, new=False, year=domain.current_year())
+                                   divisions=domain.DIVISIONS, new=False, year=domain.current_year(_age_ref()))
         db.execute("UPDATE sports_participants SET name=?, team=?, division=?, birth_year=?, "
                    "category=? WHERE id=?",
                    (p["name"], p["team"], p["division"], p["birth_year"], p["category"], pid))
@@ -1360,9 +1382,9 @@ def participant_edit(pid):
         log_activity("{} edited participant {}".format(_who(u), pid))
         flash("Participant updated.", "success")
         return redirect(url_for("participants_list"))
-    p["age"] = domain.age_from_birth_year(p.get("birth_year"))
+    p["age"] = domain.age_from_birth_year(p.get("birth_year"), _age_ref())
     return render_template("participant_form.html", p=p, teams=teams(),
-                           divisions=domain.DIVISIONS, new=False, year=domain.current_year())
+                           divisions=domain.DIVISIONS, new=False, year=domain.current_year(_age_ref()))
 
 
 @app.route("/participants/<pid>/assign", methods=["POST"])
@@ -1560,7 +1582,7 @@ def signup():
     if selected and not allowed(selected):
         abort(403)
     if selected:
-        selected["age"] = domain.age_from_birth_year(selected.get("birth_year"))
+        selected["age"] = domain.age_from_birth_year(selected.get("birth_year"), _age_ref())
     chosen = set(participant_sport_ids(pid)) if pid else set()
     # Only offer sports the participant's age category & gender are allowed for
     # (per the admin-defined Sports Events). A NULL age/gender on an event = wildcard.
@@ -1582,11 +1604,13 @@ def signup():
         avail_evs.sort(key=lambda s: s["name"])
         if avail_evs:
             available_grouped.append({"cat": c, "events": avail_evs})
+    age_cats = config()["categories"]
     return render_template("signup.html", people=people, selected=selected,
                            registered_grouped=registered_grouped, available_grouped=available_grouped,
                            chosen=chosen, locked=locked,
                            self_only=not (act_admin or act_captain),
-                           teams=teams(), categories=config()["categories"],
+                           teams=teams(), categories=age_cats,
+                           cat_name=lambda c: domain.category_name(c, age_cats),
                            divisions=domain.DIVISIONS, show_team_filter=act_admin)
 
 
@@ -1604,7 +1628,7 @@ def volunteers():
         params = (u.get("team"),)
     roster = db.query("SELECT * FROM sports_participants WHERE " + where + " ORDER BY name", params)
     for p in roster:
-        p["age"] = domain.age_from_birth_year(p.get("birth_year"))
+        p["age"] = domain.age_from_birth_year(p.get("birth_year"), _age_ref())
 
     q = (request.args.get("q") or "").strip().lower()
     f_team = request.args.get("team") or ""
@@ -1628,6 +1652,7 @@ def volunteers():
     return render_template("volunteers.html", roster=filtered, volunteers=vols,
                            teams=teams(), can_edit=can_edit, categories=cats,
                            divisions=domain.DIVISIONS, show_team_filter=u["is_admin"],
+                           cat_name=lambda c: domain.category_name(c, cats),
                            filters={"q": q, "team": f_team, "category": f_cat, "division": f_div})
 
 
@@ -1945,6 +1970,16 @@ def sac_edit(sid):
                   "'New' or 'Open to register'. Pick a later date/time or a status like "
                   "'Completed' or 'In progress'.", "danger")
             return redirect(url_for("sac_edit", sid=sid))
+        prog = current_program()
+        if new_date and prog and prog.get("start_date") and prog.get("end_date"):
+            try:
+                d = date.fromisoformat(new_date)
+                if not (date.fromisoformat(prog["start_date"]) <= d <= date.fromisoformat(prog["end_date"])):
+                    raise ValueError
+            except ValueError:
+                flash("Event date must fall within {}'s program dates ({} to {}).".format(
+                    prog["name"], prog["start_date"], prog["end_date"]), "danger")
+                return redirect(url_for("sac_edit", sid=sid))
         db.execute("UPDATE sports_sport_age_categories SET sport_id=?, age_category=?, gender=?, "
                    "scoring_mode=?, event_format=?, rounds=?, points=?, places=?, date=?, slot=?, "
                    "location=?, status=? WHERE id=?",
@@ -2481,10 +2516,12 @@ def approvals():
                           "AND archived=0 ORDER BY id"):
             p["pending_team_name"] = domain.team_name(p["pending_team"], teams())
             p["team_name"] = domain.team_name(p["team"], teams()) if p.get("team") else ""
-            p["age"] = domain.age_from_birth_year(p.get("birth_year"))
+            p["age"] = domain.age_from_birth_year(p.get("birth_year"), _age_ref())
             roster.append(p)
+    _cats = config()["categories"]
     return render_template("approvals.html", my_votes=my_votes, pending=pending,
-                           disputed=disputed, roster=roster, sac_label=sac_label)
+                           disputed=disputed, roster=roster, sac_label=sac_label,
+                           cat_name=lambda c: domain.category_name(c, _cats))
 
 
 @app.route("/approvals/<sid>/vote", methods=["POST"])
@@ -2653,18 +2690,20 @@ def results_list():
         "JOIN sports_results r ON r.participant=p.id JOIN sports_sport_age_categories sac ON sac.id=r.sac_id "
         "WHERE (sac.finalised=1 OR sac.status='completed') ORDER BY p.name")
 
+    _cats = config()["categories"]
     return render_template("results.html", events=sacs, counts=counts, sac_label=sac_label,
                            view=view, has_mine=has_mine, has_team=has_team, acting=acting,
                            captain_view=captain_view,
                            player_results=player_results, team_results=team_results,
                            standings=standings,
-                           named=named, categories=config()["categories"],
+                           named=named, categories=_cats,
                            divisions=domain.DIVISIONS, sport_categories=sport_categories(),
                            sports=all_sports(), combos=combos, teams=teams(), my_team=my_team,
                            filters={"age": f_age, "gender": f_gender, "category": f_cat,
                                     "sport": f_sport, "team": f_team, "name": f_name,
                                     "date_from": f_from, "date_to": f_to},
-                           team_name=lambda t: domain.team_name(t, teams()))
+                           team_name=lambda t: domain.team_name(t, teams()),
+                           cat_name=lambda c: domain.category_name(c, _cats))
 
 
 @app.route("/results/<sid>")
@@ -2774,7 +2813,7 @@ def team_selection():
     f_team = request.args.get("team") or ""
     rows = db.query("SELECT * FROM sports_participants WHERE archived=0 ORDER BY name")
     for p in rows:
-        p["age"] = domain.age_from_birth_year(p.get("birth_year"))
+        p["age"] = domain.age_from_birth_year(p.get("birth_year"), _age_ref())
 
     def matches(p):
         if q and q not in p["name"].lower() and q not in p["id"].lower():
@@ -2795,6 +2834,7 @@ def team_selection():
     counts["__none__"] = db.count("sports_participants", "team IS NULL AND archived=0")
     return render_template("team_selection.html", people=people, teams=tlist, counts=counts,
                            categories=cats, divisions=domain.DIVISIONS,
+                           cat_name=lambda c: domain.category_name(c, cats),
                            filters={"q": q, "division": f_div, "category": f_cat, "team": f_team})
 
 
@@ -3105,7 +3145,7 @@ def _recompute_all_categories(cats, program_id=None):
     else:
         rows = db.query("SELECT id, birth_year FROM sports_participants")
     for p in rows:
-        cat = domain.category_for_birth_year(p["birth_year"], cats)
+        cat = domain.category_for_birth_year(p["birth_year"], cats, _age_ref())
         db.execute("UPDATE sports_participants SET category=? WHERE id=?", (cat, p["id"]))
 
 
@@ -3141,11 +3181,13 @@ def users_list():
     if f_age:
         users = [u for u in users if u.get("category") == f_age]
 
+    _cats = config()["categories"]
     return render_template("users.html", users=users, teams=teams(),
-                           categories=config()["categories"],
+                           categories=_cats,
                            filters={"name": f_name, "role": f_role, "team": f_team,
                                     "status": f_status, "age": f_age},
-                           team_name=lambda t: domain.team_name(t, teams()))
+                           team_name=lambda t: domain.team_name(t, teams()),
+                           cat_name=lambda c: domain.category_name(c, _cats))
 
 
 def _user_form_ctx(u, new):
@@ -3219,7 +3261,7 @@ def user_new():
                 "house, number, roster, volunteer, archived, sample) "
                 "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,0,0,0)",
                 (pid, name, team if "captain" in roles else None, division, by,
-                 domain.category_for_birth_year(by, cats) if by else None,
+                 domain.category_for_birth_year(by, cats, _age_ref()) if by else None,
                  uid, username, pw_hash, db.dumps(roles), email, sec_q, hash_answer(sec_a),
                  house, number, 1 if is_player else 0))
             audit_stamp("sports_participants", pid, created=True)
@@ -3353,6 +3395,15 @@ def admin_settings():
         db.set_setting("points", pts)
         db.set_setting("count_in_progress", bool(request.form.get("count_in_progress")))
         db.set_setting("sender_email", (request.form.get("sender_email") or "").strip())
+        age_ref = (request.form.get("age_ref_date") or "").strip()
+        if age_ref:
+            try:
+                date.fromisoformat(age_ref)
+            except ValueError:
+                flash("Age calculation start date must be a valid date.", "danger")
+                age_ref = None
+        if age_ref is not None:
+            db.set_setting("age_ref_date", age_ref)
         for role in ("captain",):
             val = request.form.get("role_pw_" + role) or ""
             if val:
@@ -3603,7 +3654,7 @@ def import_participants():
                    "volunteer, archived, sample) VALUES(?,?,?,?,?,?,0,0,0)",
                    (pid, name, (row.get("team") or "").strip() or None,
                     (row.get("division") or row.get("Gender") or "Boys").strip(),
-                    byi, domain.category_for_birth_year(byi, cats)))
+                    byi, domain.category_for_birth_year(byi, cats, _age_ref())))
         audit_stamp("sports_participants", pid, created=True)
         added += 1
     log_activity("Admin imported {} participants".format(added))
